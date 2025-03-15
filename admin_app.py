@@ -37,13 +37,13 @@ class ClaimAdmin(ModelView):
     column_editable_list = ['status', 'claim_type', 'incident_date', 'claim_amount']
     column_searchable_list = ['claimant_name', 'policy_id', 'status']
     column_filters = ['claim_type', 'status']
-    form_choices = {
-        'status': [
-            ('Pending', 'Pending'),
-            ('Approved', 'Approved'),
-            ('Rejected', 'Rejected')
-        ]
-    }  # Allow dropdown selection for status
+    form_args = {
+    'status': {
+        'choices': [('Pending', 'Pending'), ('Approved', 'Approved'), ('Rejected', 'Rejected')],
+        'label': 'Claim Status'
+    }
+}
+
 
     # ✅ Bulk Approve Claims
     @action('approve', 'Approve Selected', 'Are you sure you want to approve these claims?')
