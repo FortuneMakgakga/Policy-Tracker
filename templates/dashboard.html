@@ -50,6 +50,7 @@
             <th>Policy ID</th>
             <th>Claim Type</th>
             <th>Incident Date</th>
+            <th>description</th>
             <th>Amount</th>
             <th>Status</th>
         </tr>
@@ -59,7 +60,8 @@
             <td>{{ claim.policy_id }}</td>
             <td>{{ claim.claim_type }}</td>
             <td>{{ claim.incident_date }}</td>
-            <td>${{ claim.claim_amount }}</td>
+            <td>{{ claim.description }}</td>
+            <td>R{{ claim.claim_amount }}</td>
             <td>{{ claim.status }}</td>
         </tr>
         {% endfor %}
