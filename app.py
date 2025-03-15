@@ -5,7 +5,10 @@ from flask_sqlalchemy import SQLAlchemy
 app = Flask(__name__, static_folder="static")
 #app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///claims.db'
 #app.config['SQLALCHEMY_DATABASE_URI'] = os.path.join(os.getcwd(), 'claims.db')
-app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///" + os.path.join(os.getcwd(), "claims.db").replace("\\", "/")
+#app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///" + os.path.join(os.getcwd(), "claims.db").replace("\\", "/")
+
+#I added this new line to fix the path issue so that all changes are saved to the database
+app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///" + os.path.join(app.instance_path, "claims.db").replace("\\", "/")
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['TEMPLATES_AUTO_RELOAD'] = True

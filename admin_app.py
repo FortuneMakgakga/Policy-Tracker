@@ -6,7 +6,9 @@ import pandas as pd
 import os
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///claims.db'
+#app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///claims.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///" + os.path.join(app.instance_path, "claims.db").replace("\\", "/")
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = 'supersecretkey'  # Needed for Flask-Admin
 
