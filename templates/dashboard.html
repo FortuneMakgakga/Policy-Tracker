@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claims Dashboard</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #00ffcc;
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        table {
+            width: 80%;
+            margin: auto;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #00ffcc;
+            padding: 10px;
+        }
+        th {
+            background-color: #1a1a1a;
+        }
+        .btn {
+            background-color: #00ffcc;
+            color: #121212;
+            padding: 10px 20px;
+            text-decoration: none;
+            font-weight: bold;
+            display: inline-block;
+            margin: 20px;
+        }
+        .btn:hover {
+            background-color: #00ddaa;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>📊 Claims Dashboard</h1>
+
+    <a href="/download" class="btn">⬇️ Download Claims Data</a>
+
+    <h2>Claims Table</h2>
+    <table>
+        <tr>
+            <th>Claim ID</th>
+            <th>Policy ID</th>
+            <th>Claim Type</th>
+            <th>Incident Date</th>
+            <th>Amount</th>
+            <th>Status</th>
+        </tr>
+        {% for claim in claims %}
+        <tr>
+            <td>{{ claim.id }}</td>
+            <td>{{ claim.policy_id }}</td>
+            <td>{{ claim.claim_type }}</td>
+            <td>{{ claim.incident_date }}</td>
+            <td>${{ claim.claim_amount }}</td>
+            <td>{{ claim.status }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+</body>
+</html>
