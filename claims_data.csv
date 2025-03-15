@@ -1,0 +1,4 @@
+Claim ID,Policy ID,Claim Type,Incident Date,Incident Location,Description,Claim Amount,Status,Claimant Name,Contact Number,Email
+1,1,Auto,2024-03-04,New York,Car accident,5000.0,Pending,John Doe,1234567890,john.doe@example.com
+2,0,Auto,2025-01-25,Gauteng,"My car got rammed from behind, need assistance with repairs to the damaged bumper",3000.0,Pending,Fortune,0818735515,makgakgafortune1@gmail.com
+3,3,Home,2025-02-25,Western Cape,Geyser pipe burst. Need assistance with pipe replacements,1500.0,Pending,Fortune,0818735515,robynraps18@gmailcom

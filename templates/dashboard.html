@@ -12,13 +12,15 @@
             text-align: center;
         }
         table {
-            width: 80%;
+            width: 90%;
             margin: auto;
             border-collapse: collapse;
+            margin-top: 20px;
         }
         th, td {
             border: 1px solid #00ffcc;
-            padding: 10px;
+            padding: 12px;
+            text-align: center;
         }
         th {
             background-color: #1a1a1a;
@@ -31,9 +33,22 @@
             font-weight: bold;
             display: inline-block;
             margin: 20px;
+            border-radius: 5px;
         }
         .btn:hover {
             background-color: #00ddaa;
+        }
+        .status-approved {
+            color: #00ff00;
+            font-weight: bold;
+        }
+        .status-rejected {
+            color: #ff3333;
+            font-weight: bold;
+        }
+        .status-pending {
+            color: #ffcc00;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -41,7 +56,10 @@
 
     <h1>📊 Claims Dashboard</h1>
 
-    <a href="/download" class="btn">⬇️ Download Claims Data</a>
+    <!-- Buttons for downloading data -->
+    <a href="/download" class="btn">⬇️ Download CSV</a>
+    <a href="/export-excel" class="btn">📂 Download Excel</a>
+    <a href="/admin/" class="btn">⚙️ Admin Panel</a>
 
     <h2>Claims Table</h2>
     <table>
@@ -50,7 +68,7 @@
             <th>Policy ID</th>
             <th>Claim Type</th>
             <th>Incident Date</th>
-            <th>description</th>
+            <th>Description</th>
             <th>Amount</th>
             <th>Status</th>
         </tr>
@@ -62,7 +80,15 @@
             <td>{{ claim.incident_date }}</td>
             <td>{{ claim.description }}</td>
             <td>R{{ claim.claim_amount }}</td>
-            <td>{{ claim.status }}</td>
+            <td>
+                {% if claim.status == 'Approved' %}
+                    <span class="status-approved">✅ Approved</span>
+                {% elif claim.status == 'Rejected' %}
+                    <span class="status-rejected">❌ Rejected</span>
+                {% else %}
+                    <span class="status-pending">⏳ Pending</span>
+                {% endif %}
+            </td>
         </tr>
         {% endfor %}
     </table>
