@@ -1,7 +1,26 @@
 from flask import Flask, render_template, send_from_directory
+from flask_sqlalchemy import SQLAlchemy
 import os
 
 app = Flask(__name__, static_folder='static')
+
+# Database configuration
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///service_app.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
+
+# Models
+class ServiceProvider(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    status = db.Column(db.String(50), nullable=False)
+
+class Client(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    appointment_time = db.Column(db.String(50))
+    distance = db.Column(db.String(50))
+    service_provider_id = db.Column(db.Integer, db.ForeignKey('service_provider.id'))
 
 @app.route('/')
 def home():
@@ -20,7 +39,10 @@ def custom_static(filename):
     return send_from_directory(app.static_folder, filename)
 
 if __name__ == '__main__':
-    app.run(debug=True,use_reloader=False)
+    with app.app_context():
+        db.create_all()
+    app.run(debug=True, use_reloader=False)
+
 
 
 # Directory structure
