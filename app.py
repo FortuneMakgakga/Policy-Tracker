@@ -1,8 +1,10 @@
 from flask import Flask, render_template, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
+from flask_socketio import SocketIO, emit
 import os
 
 app = Flask(__name__, static_folder='static')
+socketio = SocketIO(app)
 
 # Database configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///service_app.db'
@@ -38,10 +40,16 @@ def service_provider():
 def custom_static(filename):
     return send_from_directory(app.static_folder, filename)
 
+@socketio.on('send_notification')
+def handle_notification(data):
+    print(f'Received notification: {data}')
+    emit('receive_notification', data, broadcast=True)
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(debug=True, use_reloader=False)
+    socketio.run(app, debug=True, use_reloader=False)
+
 
 
 

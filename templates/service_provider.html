@@ -1,4 +1,47 @@
-templates/service_provider.html:
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Service Provider</title>
+    <link rel="stylesheet" type="text/css" href="/static/styles.css">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body class="sp-background">
+    <h1>Service Provider Notification Panel</h1>
+    <div id="notification-panel">
+        <p>No new notifications</p>
+    </div>
+    <script>
+        var socket = io();
+        socket.on('receive_notification', function(data) {
+            const panel = document.getElementById('notification-panel');
+            const message = document.createElement('p');
+            message.textContent = 'New Job Alert: ' + data;
+            panel.appendChild(message);
+        });
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- templates/service_provider.html:
 <!DOCTYPE html>
 <html>
 <head>
@@ -9,4 +52,4 @@ templates/service_provider.html:
     <h1>Service Provider Notification Panel</h1>
     <p>No new notifications</p>
 </body>
-</html>
+</html> -->
