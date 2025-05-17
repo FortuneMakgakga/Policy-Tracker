@@ -15,7 +15,7 @@
         socket.on('receive_notification', function(data) {
             const panel = document.getElementById('notification-panel');
             const message = document.createElement('p');
-            message.textContent = 'New Job Alert: ' + data;
+            message.textContent = 'New Job Alert: ' + data.message;
             panel.appendChild(message);
         });
     </script>

@@ -4,7 +4,7 @@ from flask_socketio import SocketIO, emit
 import os
 
 app = Flask(__name__, static_folder='static')
-socketio = SocketIO(app)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Database configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///service_app.db'
@@ -35,7 +35,8 @@ def client():
 @app.route('/send_notification', methods=['POST'])
 def send_notification():
     data = request.json.get('message')
-    socketio.emit('receive_notification', data, broadcast=True)
+    print(f'Sending notification: {data}')
+    socketio.emit('receive_notification', {'message': data})
     return jsonify({'status': 'Notification sent'}), 200
 
 @app.route('/service_provider')
@@ -50,7 +51,6 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     socketio.run(app, debug=True, use_reloader=False)
-
 
 
 
