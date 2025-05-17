@@ -1,27 +1,44 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Admin Panel</title>
-    <link rel="stylesheet" type="text/css" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
     <h1>Admin Panel</h1>
-    {% for table, content in data.items() %}
-        <h2>{{ table }}</h2>
-        <table border="1">
-            <tr>
-                {% for col in content['columns'] %}
-                    <th>{{ col }}</th>
-                {% endfor %}
-            </tr>
-            {% for row in content['rows'] %}
-                <tr>
-                    {% for value in row %}
-                        <td>{{ value }}</td>
-                    {% endfor %}
-                </tr>
-            {% endfor %}
-        </table>
-    {% endfor %}
+    <table border="1">
+        <tr>
+            <th>ID</th>
+            <th>Client Name</th>
+            <th>Job Description</th>
+            <th>Skill</th>
+            <th>Appointment</th>
+            <th>Distance</th>
+            <th>Actions</th>
+        </tr>
+        {% for job in jobs %}
+        <tr>
+            <td>{{ job.id }}</td>
+            <td>{{ job.client_name }}</td>
+            <td>{{ job.job_desc }}</td>
+            <td>{{ job.skill }}</td>
+            <td>{{ job.appointment }}</td>
+            <td>{{ job.distance }}</td>
+            <td>
+                <form action="/edit/{{ job.id }}" method="post">
+                    <input type="text" name="client_name" placeholder="Name" value="{{ job.client_name }}">
+                    <input type="text" name="job_desc" placeholder="Job" value="{{ job.job_desc }}">
+                    <input type="text" name="skill" placeholder="Skill" value="{{ job.skill }}">
+                    <input type="text" name="appointment" placeholder="Appointment" value="{{ job.appointment }}">
+                    <input type="text" name="distance" placeholder="Distance" value="{{ job.distance }}">
+                    <button type="submit">Update</button>
+                </form>
+                <a href="/delete/{{ job.id }}">Delete</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    <a href="/">Back to Home</a>
 </body>
 </html>
