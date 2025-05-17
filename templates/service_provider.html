@@ -7,20 +7,23 @@
 </head>
 <body class="sp-background">
     <h1>Service Provider Notification Panel</h1>
-    <div id="notification-panel">
-        <p>No new notifications</p>
-    </div>
+    <div id="notification-panel"></div>
     <script>
         var socket = io();
         socket.on('receive_notification', function(data) {
             const panel = document.getElementById('notification-panel');
-            const message = document.createElement('p');
-            message.textContent = 'New Job Alert: ' + data.message;
-            panel.appendChild(message);
+            const card = document.createElement('div');
+            card.className = 'job-card';
+            card.innerHTML = `<h3>${data.clientName} - ${data.skill}</h3>
+                              <p>Job: ${data.jobDesc}</p>
+                              <p>Appointment: ${data.appointment}</p>
+                              <p>Distance: ${data.distance}</p>`;
+            panel.appendChild(card);
         });
     </script>
 </body>
 </html>
+
 
 
 

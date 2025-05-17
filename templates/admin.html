@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Panel</title>
+    <link rel="stylesheet" type="text/css" href="/static/styles.css">
+</head>
+<body>
+    <h1>Admin Panel</h1>
+    {% for table, content in data.items() %}
+        <h2>{{ table }}</h2>
+        <table border="1">
+            <tr>
+                {% for col in content['columns'] %}
+                    <th>{{ col }}</th>
+                {% endfor %}
+            </tr>
+            {% for row in content['rows'] %}
+                <tr>
+                    {% for value in row %}
+                        <td>{{ value }}</td>
+                    {% endfor %}
+                </tr>
+            {% endfor %}
+        </table>
+    {% endfor %}
+</body>
+</html>

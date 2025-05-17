@@ -8,25 +8,49 @@
 <body>
     <h1>Client Page</h1>
     <form id="notificationForm">
-        <label for="message">Send Job Notification:</label>
-        <input type="text" id="message" placeholder="Enter job alert">
+        <label for="clientName">Client Name:</label>
+        <input type="text" id="clientName" placeholder="Enter client name"><br>
+
+        <label for="jobDesc">Job Description:</label>
+        <input type="text" id="jobDesc" placeholder="Enter job description"><br>
+
+        <label for="skill">Skill Required:</label>
+        <select id="skill">
+            <option>Plumbing</option>
+            <option>Electrical</option>
+            <option>Carpentry</option>
+            <option>Painting</option>
+        </select><br>
+
+        <label for="appointment">Appointment Time:</label>
+        <input type="text" id="appointment" placeholder="Enter time"><br>
+
+        <label for="distance">Distance:</label>
+        <input type="text" id="distance" placeholder="Enter distance"><br>
+
         <button type="submit">Send</button>
     </form>
     <script>
         const form = document.getElementById('notificationForm');
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
-            const message = document.getElementById('message').value;
+            const data = {
+                clientName: document.getElementById('clientName').value,
+                jobDesc: document.getElementById('jobDesc').value,
+                skill: document.getElementById('skill').value,
+                appointment: document.getElementById('appointment').value,
+                distance: document.getElementById('distance').value
+            };
             const response = await fetch('/send_notification', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ message })
+                body: JSON.stringify(data)
             });
             const result = await response.json();
             alert(result.status);
-            document.getElementById('message').value = '';
+            form.reset();
         });
     </script>
 </body>
