@@ -1,0 +1,19 @@
+body {
+    font-family: Arial, sans-serif;
+}
+
+.sp-background {
+    background-color: black;
+    color: orange;
+    background-image: url('https://www.bing.com/images/search?view=detailV2&ccid=T%2Bp3hYB%2B&id=65090E23DF712ABE177BDADB548C7299750DF0ED&thid=OIP.T-p3hYB-A5y5M0fIm3Kp4QHaL7&mediaurl=https%3A%2F%2Fwww.shutterstock.com%2Fshutterstock%2Fphotos%2F234780184%2Fdisplay_1500%2Fstock-photo-ripped-muscular-builder-man-with-tools-234780184.jpg&cdnurl=https%3A%2F%2Fth.bing.com%2Fth%2Fid%2FR.4fea7785807e039cb93347c89b72a9e1%3Frik%3D7fANdZlyjFTb2g%26pid%3DImgRaw%26r%3D0&exph=1600&expw=993&q=a+picture+of+a+cool+handsome+builder&simid=608031606283969540&form=IRPRST&ck=67982AC11EE533532C2A38A0E3FE85EC&selectedindex=14&itb=0&ajaxhist=0&ajaxserp=0&cit=ccid_hq1Z9bDD*cp_3CE483B260780C85D025BB4E59377F6F*mid_96712A8448CF76ECD15ED7A9654B2108EE74E145*simid_608054408293716828*thid_OIP.hq1Z9bDDTS1u-j72vwHRuwHaL1&vt=2');
+    background-size: cover;
+    background-blend-mode: overlay;
+}
+a {
+    color: orange;
+    text-decoration: none;
+    margin: 10px;
+}
+a:hover {
+    text-decoration: underline;
+}
