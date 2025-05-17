@@ -1,4 +1,4 @@
-from flask import Flask, render_template, send_from_directory
+from flask import Flask, render_template, send_from_directory, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_socketio import SocketIO, emit
 import os
@@ -32,6 +32,12 @@ def home():
 def client():
     return render_template('client.html')
 
+@app.route('/send_notification', methods=['POST'])
+def send_notification():
+    data = request.json.get('message')
+    socketio.emit('receive_notification', data, broadcast=True)
+    return jsonify({'status': 'Notification sent'}), 200
+
 @app.route('/service_provider')
 def service_provider():
     return render_template('service_provider.html')
@@ -39,11 +45,6 @@ def service_provider():
 @app.route('/static/<path:filename>')
 def custom_static(filename):
     return send_from_directory(app.static_folder, filename)
-
-@socketio.on('send_notification')
-def handle_notification(data):
-    print(f'Received notification: {data}')
-    emit('receive_notification', data, broadcast=True)
 
 if __name__ == '__main__':
     with app.app_context():
