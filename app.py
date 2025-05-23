@@ -4,6 +4,7 @@ from flask_socketio import SocketIO, emit
 from flask_admin import Admin
 from flask_admin.contrib.sqla import ModelView
 from sqlalchemy import inspect, text
+from datetime import datetime
 import os
 
 app = Flask(__name__, static_folder='static')
@@ -29,6 +30,7 @@ class JobNotification(db.Model):
     skill = db.Column(db.String(50))
     appointment = db.Column(db.String(50))
     distance = db.Column(db.String(50))
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
 class JobAdmin(ModelView):
     can_edit = True
@@ -95,6 +97,7 @@ if __name__ == '__main__':
 
 
 
+
 # Directory structure
 # flask_service_app/
 # ├── app.py                   # Main Flask application
@@ -115,10 +118,12 @@ if __name__ == '__main__':
 
 
 #Initial Working Code:  
-""" from flask import Flask, render_template, send_from_directory, request, jsonify, redirect, url_for
+""" from flask import Flask, render_template, send_from_directory, request, jsonify, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import inspect,text
 from flask_socketio import SocketIO, emit
+from flask_admin import Admin
+from flask_admin.contrib.sqla import ModelView
+from sqlalchemy import inspect, text
 import os
 
 app = Flask(__name__, static_folder='static')
@@ -127,6 +132,7 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 # Database configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///service_app.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SECRET_KEY'] = 'supersecretkey'
 
 db = SQLAlchemy(app)
 
@@ -144,6 +150,15 @@ class JobNotification(db.Model):
     appointment = db.Column(db.String(50))
     distance = db.Column(db.String(50))
 
+class JobAdmin(ModelView):
+    can_edit = True
+    can_delete = True
+    column_editable_list = ['client_name', 'job_desc', 'skill', 'appointment', 'distance']
+
+# Flask-Admin setup
+admin = Admin(app, name='Service App Admin', template_mode='bootstrap4')
+admin.add_view(JobAdmin(JobNotification, db.session))
+
 @app.route('/')
 def home():
     return render_template('home.html')
@@ -153,18 +168,8 @@ def client():
     return render_template('client.html')
 
 @app.route('/admin')
-def admin():
-    inspector = inspect(db.engine)
-    tables = inspector.get_table_names()
-    data = {}
-    for table_name in tables:
-        table_data = db.session.execute(text(f'SELECT * FROM {table_name}')).fetchall()
-        columns = db.session.execute(text(f'PRAGMA table_info({table_name})')).fetchall()
-
-        columns = db.session.execute(f'PRAGMA table_info({table_name})').fetchall()
-        col_names = [col[1] for col in columns]
-        data[table_name] = {'columns': col_names, 'rows': table_data}
-    return render_template('admin.html', data=data)
+def admin_view():
+    return redirect('/admin/')
 
 @app.route('/edit/<int:job_id>', methods=['POST'])
 def edit_job(job_id):
