@@ -2,19 +2,59 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Home</title>
+    <title>Home - Service App</title>
     <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f7f9fc;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+
+        header {
+            background-color: #343a40;
+            color: #fff;
+            padding: 1rem 0;
+        }
+
+        h1 {
+            margin: 0;
+        }
+
+        .nav-container {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .nav-container a {
+            text-decoration: none;
+            background-color: #007bff;
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            transition: background-color 0.3s;
+        }
+
+        .nav-container a:hover {
+            background-color: #0056b3;
+        }
+    </style>
 </head>
 <body>
-    <h1>Welcome to the Service App</h1>
-    <div class="nav-links">
-        <a href="/">Home</a>
-        <a href="/client">Client Page</a>
-        <a href="/service-provider">Service Provider Page</a>
-        <a href="/track">Tracking Page</a>
-        <a href="/login">Login</a>
-        <a href="/logout">Logout</a>
-        <a href="/admin">Admin Panel</a>
+    <header>
+        <h1>Welcome to the Service App</h1>
+    </header>
+    
+    <div class="nav-container">
+        <a href="/client">👤 Client Page</a>
+        <a href="/service-provider">🛠️ Service Provider Page</a>
+        <a href="/track">📍 Tracking Page</a>
+        <a href="/login">🔐 Admin Login</a>
     </div>
 </body>
 </html>
