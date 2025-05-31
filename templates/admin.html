@@ -2,44 +2,84 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Admin Panel</title>
+    <title>Admin Panel 🛠️</title>
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <h1>Admin Panel</h1>
-    <table border="1">
+    <h1>Admin Panel 🛠️</h1>
+
+    <!-- Claims Table -->
+    <h2>📋 Claims</h2>
+    <table border="1" cellpadding="5" cellspacing="0">
         <tr>
             <th>ID</th>
-            <th>Client Name</th>
-            <th>Job Description</th>
-            <th>Skill</th>
-            <th>Appointment</th>
-            <th>Distance</th>
-            <th>Actions</th>
+            <th>Policy ID 🆔</th>
+            <th>Claim Type 🏷️</th>
+            <th>Incident Date 📅</th>
+            <th>Incident Location 📍</th>
+            <th>Description 📝</th>
+            <th>Claim Amount 💰</th>
+            <th>Status 🚦</th>
+            <th>Claimant Name 👤</th>
+            <th>Contact Number 📞</th>
+            <th>Email 📧</th>
+        </tr>
+        {% for claim in claims %}
+        <tr>
+            <td>{{ claim.id }}</td>
+            <td>{{ claim.policy_id }}</td>
+            <td>{{ claim.claim_type }}</td>
+            <td>{{ claim.incident_date }}</td>
+            <td>{{ claim.incident_location }}</td>
+            <td>{{ claim.description }}</td>
+            <td>{{ claim.claim_amount }}</td>
+            <td>{{ claim.status }}</td>
+            <td>{{ claim.claimant_name }}</td>
+            <td>{{ claim.contact_number }}</td>
+            <td>{{ claim.email }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <br><hr><br>
+
+    <!-- Jobs Table -->
+    <h2>🛠️ Job Requests</h2>
+    <table border="1" cellpadding="5" cellspacing="0">
+        <tr>
+            <th>ID</th>
+            <th>Client Name 👤</th>
+            <th>Job Description 📝</th>
+            <th>Skill 🎯</th>
+            <th>Appointment 📅</th>
+            <th>Distance 📏</th>
+            <th>Actions ⚙️</th>
         </tr>
         {% for job in jobs %}
         <tr>
             <td>{{ job.id }}</td>
             <td>{{ job.client_name }}</td>
-            <td>{{ job.job_desc }}</td>
-            <td>{{ job.skill }}</td>
-            <td>{{ job.appointment }}</td>
+            <td>{{ job.job_description }}</td>
+            <td>{{ job.skill_required }}</td>
+            <td>{{ job.appointment_time }}</td>
             <td>{{ job.distance }}</td>
             <td>
-                <form action="/edit/{{ job.id }}" method="post">
-                    <input type="text" name="client_name" placeholder="Name" value="{{ job.client_name }}">
-                    <input type="text" name="job_desc" placeholder="Job" value="{{ job.job_desc }}">
-                    <input type="text" name="skill" placeholder="Skill" value="{{ job.skill }}">
-                    <input type="text" name="appointment" placeholder="Appointment" value="{{ job.appointment }}">
-                    <input type="text" name="distance" placeholder="Distance" value="{{ job.distance }}">
-                    <button type="submit">Update</button>
+                <form action="/edit/{{ job.id }}" method="post" style="display:inline-block;">
+                    <input type="text" name="client_name" placeholder="Name 👤" value="{{ job.client_name }}">
+                    <input type="text" name="job_description" placeholder="Job 📝" value="{{ job.job_description }}">
+                    <input type="text" name="skill_required" placeholder="Skill 🎯" value="{{ job.skill_required }}">
+                    <input type="text" name="appointment_time" placeholder="Appointment 📅" value="{{ job.appointment_time }}">
+                    <input type="text" name="distance" placeholder="Distance 📏" value="{{ job.distance }}">
+                    <button type="submit">Update ✏️</button>
                 </form>
-                <a href="/delete/{{ job.id }}">Delete</a>
+                <a href="/delete/{{ job.id }}" style="margin-left: 10px;">Delete 🗑️</a>
             </td>
         </tr>
         {% endfor %}
     </table>
-    <a href="/">Back to Home</a>
+
+    <br>
+    <a href="/">🏠 Back to Home</a>
 </body>
 </html>
 
@@ -99,4 +139,3 @@
     <a href="/">Back to Home</a>
 </body>
 </html>
- -->
