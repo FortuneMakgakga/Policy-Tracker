@@ -10,12 +10,12 @@ from functools import wraps
 
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'
-basedir = "/workspaces/Policy-Tracker/"
+basedir = os.path.abspath(os.path.dirname(__file__))
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'claims.db')
-
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 db = SQLAlchemy(app)
-socketio = SocketIO(app, cors_allowed_origins="*")  # Enable WebSocket
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # ----------------------------- MODELS ----------------------------- #
 
@@ -27,7 +27,7 @@ class Claim(db.Model):
     incident_location = db.Column(db.String(100))
     description = db.Column(db.Text)
     claim_amount = db.Column(db.Float)
-    status = db.Column(db.String(50))
+    status = db.Column(db.String(50), default="Pending")
     claimant_name = db.Column(db.String(100))
     contact_number = db.Column(db.String(50))
     email = db.Column(db.String(100))
@@ -40,7 +40,7 @@ class JobRequest(db.Model):
     appointment_time = db.Column(db.String(50))
     distance = db.Column(db.String(50))
 
-# --------------------------- LOGIN REQUIRED DECORATOR -------------------------- #
+# --------------------------- LOGIN DECORATOR -------------------------- #
 
 def admin_login_required(f):
     @wraps(f)
@@ -87,7 +87,6 @@ class ClaimAdmin(ModelView):
                 claim.status = "Approved"
         db.session.commit()
         flash(f"{len(ids)} claim(s) approved!", "success")
-        return redirect('/admin/claim')
 
     @action('reject', 'Reject Selected', 'Are you sure you want to reject these claims?')
     def action_reject(self, ids):
@@ -97,7 +96,6 @@ class ClaimAdmin(ModelView):
                 claim.status = "Rejected"
         db.session.commit()
         flash(f"{len(ids)} claim(s) rejected!", "danger")
-        return redirect('/admin/claim')
 
 # --------------------------- ADMIN SETUP -------------------------- #
 
@@ -110,6 +108,10 @@ admin.add_view(ModelView(JobRequest, db.session))
 @app.route('/')
 def home():
     return render_template('home.html')
+
+@app.route('/track')
+def track():
+    return render_template('register_claim.html')  # This includes both registration and tracking form
 
 @app.route('/api/claims/<int:claim_id>')
 def get_claim(claim_id):
@@ -128,16 +130,45 @@ def get_claim(claim_id):
             'contact_number': claim.contact_number,
             'email': claim.email
         })
-    else:
-        return jsonify({'error': 'Claim not found'}), 404
+    return jsonify({'error': 'Claim not found'}), 404
 
-@app.route('/track')
+@app.route('/register_claim')
+def register_claim():
+    return render_template('register_claim.html')
 
-def track():
-    return redirect('/admin')
+@app.route('/submit_claim', methods=['POST'])
+def submit_claim():
+    data = request.get_json()
+    new_claim = Claim(
+        policy_id=data.get('policy_id'),
+        claim_type=data.get('claim_type'),
+        incident_date=data.get('incident_date'),
+        incident_location=data.get('incident_location'),
+        description=data.get('description'),
+        claim_amount=data.get('claim_amount'),
+        claimant_name=data.get('claimant_name'),
+        contact_number=data.get('contact_number'),
+        email=data.get('email'),
+    )
+    db.session.add(new_claim)
+    db.session.commit()
+    return jsonify({'message': 'Claim submitted successfully!', 'claim_id': new_claim.id})
 
+@app.route('/client')
+def client():
+    return render_template('client.html')
 
+@app.route('/service-provider')
+def service_provider():
+    return render_template('service_provider.html')
+
+@app.route('/admin')
 @admin_login_required
+def admin_panel():
+    jobs = JobRequest.query.all()
+    claims = Claim.query.all()
+    return render_template('admin.html', jobs=jobs, claims=claims)
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     error = None
@@ -145,8 +176,8 @@ def login():
         username = request.form['username']
         password = request.form['password']
         if username == 'admin' and password == 'admin123':
-            session['user'] = username  # Set session user to 'admin'
-            return render_template('admin.html')
+            session['user'] = 'admin'
+            return redirect(url_for('admin_panel'))
         else:
             error = 'Invalid Credentials. Please try again.'
     return render_template('login.html', error=error)
@@ -174,7 +205,6 @@ def export_csv():
         'Contact Number': c.contact_number,
         'Email': c.email
     } for c in claims]
-
     df = pd.DataFrame(data)
     filename = "claims_export.csv"
     df.to_csv(filename, index=False)
@@ -197,51 +227,33 @@ def export_excel():
         'Contact Number': c.contact_number,
         'Email': c.email
     } for c in claims]
-
     df = pd.DataFrame(data)
     os.makedirs("downloads", exist_ok=True)
     filepath = os.path.join("downloads", "claims_export.xlsx")
     df.to_excel(filepath, index=False)
     return send_from_directory('downloads', "claims_export.xlsx", as_attachment=True)
 
-@app.route('/client')
-def client():
-    return render_template('client.html')
-
-@app.route('/service-provider')
-def service_provider():
-    return render_template('service_provider.html')
-
 @app.route('/send_notification', methods=['POST'])
 def send_notification():
     data = request.get_json()
     if not data:
         return jsonify({'status': 'No data received'}), 400
-
-    client_name = data.get('clientName')
-    job_desc = data.get('jobDesc')
-    skill = data.get('skill')
-    appointment = data.get('appointment')
-    distance = data.get('distance')
-
     job = JobRequest(
-        client_name=client_name,
-        job_description=job_desc,
-        skill_required=skill,
-        appointment_time=appointment,
-        distance=distance
+        client_name=data.get('clientName'),
+        job_description=data.get('jobDesc'),
+        skill_required=data.get('skill'),
+        appointment_time=data.get('appointment'),
+        distance=data.get('distance')
     )
     db.session.add(job)
     db.session.commit()
-
     socketio.emit('receive_notification', {
-        'clientName': client_name,
-        'jobDesc': job_desc,
-        'skill': skill,
-        'appointment': appointment,
-        'distance': distance
+        'clientName': job.client_name,
+        'jobDesc': job.job_description,
+        'skill': job.skill_required,
+        'appointment': job.appointment_time,
+        'distance': job.distance
     })
-
     return jsonify({'status': 'Notification sent and stored!'})
 
 # ---------------------------- MAIN ---------------------------- #
@@ -250,7 +262,6 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     socketio.run(app, debug=True, use_reloader=False)
-
 
 
 
