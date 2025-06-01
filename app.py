@@ -40,6 +40,15 @@ class JobRequest(db.Model):
     appointment_time = db.Column(db.String(50))
     distance = db.Column(db.String(50))
 
+class ServiceProvider(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100))
+    email = db.Column(db.String(100), unique=True)
+    phone = db.Column(db.String(50))
+    skill = db.Column(db.String(100))
+    latitude = db.Column(db.Float)
+    longitude = db.Column(db.Float)
+
 # --------------------------- LOGIN DECORATOR -------------------------- #
 
 def admin_login_required(f):
@@ -102,6 +111,7 @@ class ClaimAdmin(ModelView):
 admin = Admin(app, name='Claims Admin', template_mode='bootstrap4', index_view=MyAdminIndexView())
 admin.add_view(ClaimAdmin(Claim, db.session))
 admin.add_view(ModelView(JobRequest, db.session))
+admin.add_view(ModelView(ServiceProvider, db.session))
 
 # --------------------------- ROUTES -------------------------- #
 
@@ -111,7 +121,7 @@ def home():
 
 @app.route('/track')
 def track():
-    return render_template('register_claim.html')  # This includes both registration and tracking form
+    return render_template('register_claim.html')
 
 @app.route('/api/claims/<int:claim_id>')
 def get_claim(claim_id):
@@ -161,6 +171,32 @@ def client():
 @app.route('/service-provider')
 def service_provider():
     return render_template('service_provider.html')
+
+@app.route('/register_provider')
+def register_provider():
+    return render_template('register_provider.html')
+
+@app.route('/submit_provider', methods=['POST'])
+def submit_provider():
+    name = request.form.get('name')
+    email = request.form.get('email')
+    phone = request.form.get('phone')
+    skill = request.form.get('skill')
+    latitude = float(request.form.get('latitude') or 0)
+    longitude = float(request.form.get('longitude') or 0)
+
+    new_provider = ServiceProvider(
+        name=name,
+        email=email,
+        phone=phone,
+        skill=skill,
+        latitude=latitude,
+        longitude=longitude
+    )
+    db.session.add(new_provider)
+    db.session.commit()
+    flash('Service Provider registered successfully!', 'success')
+    return redirect(url_for('register_provider'))
 
 @app.route('/admin')
 @admin_login_required
