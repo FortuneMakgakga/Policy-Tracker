@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Live Job Map</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+            font-family: Arial, sans-serif;
+            display: flex;
+        }
+        #map {
+            flex: 3;
+            height: 100vh;
+        }
+        #job-panel {
+            flex: 1;
+            background-color: #1a1a1a;
+            color: #f0f0f0;
+            padding: 1rem;
+            overflow-y: auto;
+            border-left: 2px solid #333;
+        }
+        .job-entry {
+            background: #2c2c2c;
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            border-radius: 10px;
+            box-shadow: 0 0 8px rgba(255, 140, 0, 0.4);
+        }
+        .job-entry strong {
+            color: orange;
+        }
+        h2 {
+            color: orange;
+        }
+        .leaflet-control-container .leaflet-routing-container {
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <div id="job-panel">
+        <h2>Incoming Jobs</h2>
+        <div id="job-list"></div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.min.js"></script>
+
+    <script>
+        const provider = {
+            lat: {{ provider.latitude }},
+            lng: {{ provider.longitude }}
+        };
+
+        const map = L.map('map').setView([provider.lat, provider.lng], 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        const providerMarker = L.marker([provider.lat, provider.lng]).addTo(map).bindPopup("Service Provider").openPopup();
+
+        const socket = io();
+
+        socket.on('receive_notification', (data) => {
+            const {
+                clientName,
+                jobDesc,
+                skill,
+                appointment,
+                distance,
+                latitude,
+                longitude
+            } = data;
+
+            const clientMarker = L.marker([latitude, longitude]).addTo(map).bindPopup(`<strong>${clientName}</strong>`);
+
+            L.Routing.control({
+                waypoints: [
+                    L.latLng(provider.lat, provider.lng),
+                    L.latLng(latitude, longitude)
+                ],
+                routeWhileDragging: false,
+                draggableWaypoints: false,
+                addWaypoints: false
+            }).addTo(map);
+
+            const jobList = document.getElementById('job-list');
+            const div = document.createElement('div');
+            div.className = 'job-entry';
+            div.innerHTML = `
+                <strong>${clientName}</strong><br/>
+                <em>${jobDesc}</em><br/>
+                Skill: ${skill}<br/>
+                Appointment: ${appointment}<br/>
+                Distance: ${distance} km
+            `;
+            jobList.prepend(div);
+        });
+    </script>
+</body>
+</html>
+
+
