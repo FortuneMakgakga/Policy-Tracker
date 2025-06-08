@@ -213,7 +213,7 @@ def service_provider():
     jobs = JobRequest.query.filter(JobRequest.skill_required == provider.skill).all()
 
     return render_template(
-        'service_provider.html',
+        'live_job_map.html',
         provider=provider,
         jobs=jobs,
         provider_lat=provider.latitude,
