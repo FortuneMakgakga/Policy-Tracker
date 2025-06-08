@@ -39,7 +39,10 @@ class JobRequest(db.Model):
     skill_required = db.Column(db.String(100))
     appointment_time = db.Column(db.String(50))
     distance = db.Column(db.String(50))
+    latitude = db.Column(db.Float)
+    longitude = db.Column(db.Float)
 
+    
 class ServiceProvider(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100))
@@ -48,14 +51,24 @@ class ServiceProvider(db.Model):
     skill = db.Column(db.String(100))
     latitude = db.Column(db.Float)
     longitude = db.Column(db.Float)
+    password = db.Column(db.String(100))
 
-# --------------------------- LOGIN DECORATOR -------------------------- #
+# --------------------------- LOGIN DECORATORS -------------------------- #
 
 def admin_login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if session.get('user') != 'admin':
             return redirect(url_for('login'))
+        print("sp_id found:", session['sp_id'])
+        return f(*args, **kwargs)
+    return decorated_function
+
+def sp_login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'sp_id' not in session:
+            return redirect(url_for('sp_login'))
         return f(*args, **kwargs)
     return decorated_function
 
@@ -168,42 +181,88 @@ def submit_claim():
 def client():
     return render_template('client.html')
 
-@app.route('/service-provider')
-def service_provider():
-    return render_template('service_provider.html')
 
-@app.route('/register_provider')
+@app.route('/sp_login', methods=['GET', 'POST'])
+def sp_login():
+    if request.method == 'POST':
+        email = request.form['email']
+        password = request.form['password']
+        provider = ServiceProvider.query.filter_by(email=email, password=password).first()
+        if provider:
+            session['sp_id'] = provider.id
+            return redirect(url_for('service_provider'))
+        flash('Invalid credentials', 'danger')
+    return render_template('login_provider.html')
+
+@app.route('/sp_logout')
+def sp_logout():
+    session.pop('sp_id', None)
+    flash('Logged out successfully.', 'info')
+    return redirect(url_for('home'))
+
+
+
+@app.route('/service-provider')
+@sp_login_required
+def service_provider():
+    provider = ServiceProvider.query.get(session['sp_id'])
+    if not provider:
+        return redirect(url_for('sp_login'))
+
+    # Filter jobs by provider's skill if applicable
+    jobs = JobRequest.query.filter(JobRequest.skill_required == provider.skill).all()
+
+    return render_template(
+        'service_provider.html',
+        provider=provider,
+        jobs=jobs,
+        provider_lat=provider.latitude,
+        provider_lng=provider.longitude
+    )
+
+
+
+@app.route('/register_provider', methods=['GET', 'POST'])
 def register_provider():
+    if request.method == 'POST':
+        name = request.form.get('name')
+        email = request.form.get('email')
+        phone = request.form.get('phone')
+        skill = request.form.get('skill')
+        latitude = float(request.form.get('latitude') or 0)
+        longitude = float(request.form.get('longitude') or 0)
+        password = request.form.get('password')
+
+        existing = ServiceProvider.query.filter_by(email=email).first()
+        if existing:
+            flash('Email already registered. Please login.', 'warning')
+            return redirect(url_for('sp_login'))
+
+        new_provider = ServiceProvider(
+            name=name,
+            email=email,
+            phone=phone,
+            skill=skill,
+            latitude=latitude,
+            longitude=longitude,
+            password=password
+        )
+        db.session.add(new_provider)
+        db.session.commit()
+        flash('Service Provider registered! Please login.', 'success')
+        return redirect(url_for('sp_login'))
+
     return render_template('register_provider.html')
 
-@app.route('/submit_provider', methods=['POST'])
-def submit_provider():
-    name = request.form.get('name')
-    email = request.form.get('email')
-    phone = request.form.get('phone')
-    skill = request.form.get('skill')
-    latitude = float(request.form.get('latitude') or 0)
-    longitude = float(request.form.get('longitude') or 0)
-
-    new_provider = ServiceProvider(
-        name=name,
-        email=email,
-        phone=phone,
-        skill=skill,
-        latitude=latitude,
-        longitude=longitude
-    )
-    db.session.add(new_provider)
-    db.session.commit()
-    flash('Service Provider registered successfully!', 'success')
-    return redirect(url_for('register_provider'))
 
 @app.route('/admin')
 @admin_login_required
 def admin_panel():
     jobs = JobRequest.query.all()
     claims = Claim.query.all()
-    return render_template('admin.html', jobs=jobs, claims=claims)
+    service_providers = ServiceProvider.query.all()
+
+    return render_template('admin.html', jobs=jobs, claims=claims,service_providers=service_providers)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -279,7 +338,9 @@ def send_notification():
         job_description=data.get('jobDesc'),
         skill_required=data.get('skill'),
         appointment_time=data.get('appointment'),
-        distance=data.get('distance')
+        distance=data.get('distance'),
+        latitude=data.get('latitude'),
+        longitude=data.get('longitude')
     )
     db.session.add(job)
     db.session.commit()
@@ -288,9 +349,38 @@ def send_notification():
         'jobDesc': job.job_description,
         'skill': job.skill_required,
         'appointment': job.appointment_time,
-        'distance': job.distance
+        'distance': job.distance,
+        'latitude':job.latitude,
+        'longitude':job.longitude
     })
     return jsonify({'status': 'Notification sent and stored!'})
+
+
+
+@app.route('/submit_provider', methods=['POST'])
+def submit_provider():
+    name = request.form['name']
+    email = request.form['email']
+    phone = request.form['phone']
+    skill = request.form['skill']
+    latitude = request.form['latitude']
+    longitude = request.form['longitude']
+    password=request.form['password']
+
+    new_provider = ServiceProvider(
+        name=name,
+        email=email,
+        phone=phone,
+        skill=skill,
+        latitude=latitude,
+        longitude=longitude,
+        password=password
+    )
+
+    db.session.add(new_provider)
+    db.session.commit()
+    flash('Service provider registered successfully!')
+    return redirect(url_for('admin_panel'))  # or wherever you want to redirect
 
 # ---------------------------- MAIN ---------------------------- #
 
