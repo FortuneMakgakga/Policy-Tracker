@@ -78,10 +78,40 @@
         {% endfor %}
     </table>
 
+    <br><hr><br>
+
+    <!-- Service Providers Table -->
+    <h2>👷 Service Providers</h2>
+    <table border="1" cellpadding="5" cellspacing="0">
+        <tr>
+            <th>ID</th>
+            <th>Name 👤</th>
+            <th>Email 📧</th>
+            <th>Phone 📞</th>
+            <th>Skill 🎯</th>
+            <th>Latitude 📍</th>
+            <th>Longitude 📍</th>
+            <th>Password</th>
+        </tr>
+        {% for sp in service_providers %}
+        <tr>
+            <td>{{ sp.id }}</td>
+            <td>{{ sp.name }}</td>
+            <td>{{ sp.email }}</td>
+            <td>{{ sp.phone }}</td>
+            <td>{{ sp.skill }}</td>
+            <td>{{ sp.latitude }}</td>
+            <td>{{ sp.longitude }}</td>
+             <td>{{ sp.password }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
     <br>
     <a href="/">🏠 Back to Home</a>
 </body>
 </html>
+
 
 
 

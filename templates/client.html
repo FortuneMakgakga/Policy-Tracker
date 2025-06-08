@@ -27,6 +27,9 @@
 
         <label for="distance">Distance:</label>
         <input type="text" id="distance" placeholder="Enter distance"><br>
+        <input type="float" id="latitude" placeholder="Latitude"><br>
+        <input type="float" id="longitude" placeholder="Latitude"><br>
+
 
         <button type="submit">Send</button>
     </form>
@@ -39,7 +42,9 @@
                 jobDesc: document.getElementById('jobDesc').value,
                 skill: document.getElementById('skill').value,
                 appointment: document.getElementById('appointment').value,
-                distance: document.getElementById('distance').value
+                distance: document.getElementById('distance').value,
+                latitude: document.getElementById('latitude').value,
+                longitude: document.getElementById('longitude').value
             };
             const response = await fetch('/send_notification', {
                 method: 'POST',
