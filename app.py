@@ -7,6 +7,10 @@ from flask_socketio import SocketIO, emit
 import pandas as pd
 import os
 from functools import wraps
+import math
+from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime
+
 
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'
@@ -17,7 +21,9 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# ----------------------------- MODELS ----------------------------- #
+# ============================
+# MODELS
+# ============================
 
 class Claim(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -34,24 +40,62 @@ class Claim(db.Model):
 
 class JobRequest(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    client_name = db.Column(db.String(100))
-    job_description = db.Column(db.Text)
-    skill_required = db.Column(db.String(100))
-    appointment_time = db.Column(db.String(50))
-    distance = db.Column(db.String(50))
+    client_name=db.Column(db.Text, nullable=False)
+    job_description = db.Column(db.Text, nullable=False)
+    skill_required = db.Column(db.String(100), nullable=False)
+    appointment_time=db.Column(db.DateTime, nullable=False)
+    province = db.Column(db.String(100), nullable=False)
     latitude = db.Column(db.Float)
     longitude = db.Column(db.Float)
-
+    service_provider_id = db.Column(db.Integer, db.ForeignKey('service_provider.id'))
+    status = db.Column(db.String(50), default="Open")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
 class ServiceProvider(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100))
-    email = db.Column(db.String(100), unique=True)
-    phone = db.Column(db.String(50))
-    skill = db.Column(db.String(100))
+    name = db.Column(db.String(150), nullable=False)
+    email=db.Column(db.String(150),nullable=False)
+    skill = db.Column(db.String(100), nullable=False)
+    phone=db.Column(db.String(100), nullable=False)
+    province = db.Column(db.String(100), nullable=False)
     latitude = db.Column(db.Float)
     longitude = db.Column(db.Float)
-    password = db.Column(db.String(100))
+    is_available = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_assigned_at = db.Column(db.DateTime)
+    password_hash = db.Column(db.String(200), nullable=False)
+
+    jobs = db.relationship('JobRequest', backref='provider', lazy=True)
+    ratings = db.relationship('Rating', backref='provider', lazy=True)
+    payments = db.relationship('Payment', backref='provider', lazy=True)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+
+
+class Rating(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    service_provider_id = db.Column(db.Integer, db.ForeignKey('service_provider.id'))
+    job_request_id = db.Column(db.Integer, db.ForeignKey('job_request.id'))
+    score = db.Column(db.Integer, nullable=False)  # 1–5
+    comment = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+
+
+class Payment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    service_provider_id = db.Column(db.Integer, db.ForeignKey('service_provider.id'))
+    job_request_id = db.Column(db.Integer, db.ForeignKey('job_request.id'))
+    amount = db.Column(db.Float, nullable=False)
+    status = db.Column(db.String(50), default="Pending")  # Pending, Paid, Failed
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 
 # --------------------------- LOGIN DECORATORS -------------------------- #
 
@@ -126,7 +170,57 @@ admin.add_view(ClaimAdmin(Claim, db.session))
 admin.add_view(ModelView(JobRequest, db.session))
 admin.add_view(ModelView(ServiceProvider, db.session))
 
-# --------------------------- ROUTES -------------------------- #
+
+
+
+# ============================
+# HELPERS
+# ============================
+
+def calculate_distance(lat1, lon1, lat2, lon2):
+    """Return distance in km using Haversine formula."""
+    R = 6371  # Earth radius in km
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (math.sin(dlat/2) ** 2 +
+         math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) *
+         math.sin(dlon/2) ** 2)
+    return R * (2 * math.atan2(math.sqrt(a), math.sqrt(1-a)))
+
+
+def assign_job(job, max_distance_km=20):
+    """Allocate job to the best provider."""
+    providers = ServiceProvider.query.filter_by(
+        skill=job.skill_required,
+        province=job.province,
+        is_available=True
+    ).all()
+
+    # Filter by distance
+    eligible = []
+    for sp in providers:
+        if sp.latitude and sp.longitude and job.latitude and job.longitude:
+            dist = calculate_distance(job.latitude, job.longitude, sp.latitude, sp.longitude)
+            if dist <= max_distance_km:
+                eligible.append(sp)
+
+    if not eligible:
+        return None
+
+    # Sort by last_assigned_at then created_at (fair rotation)
+    eligible.sort(key=lambda sp: (sp.last_assigned_at or datetime.min, sp.created_at))
+
+    selected = eligible[0]
+    job.service_provider_id = selected.id
+    job.status = "Assigned"
+    selected.last_assigned_at = datetime.utcnow()
+    db.session.commit()
+    return selected
+
+
+# ============================
+# ROUTES
+# ============================
 
 @app.route('/')
 def home():
@@ -187,11 +281,14 @@ def sp_login():
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
-        provider = ServiceProvider.query.filter_by(email=email, password=password).first()
-        if provider:
+        provider = ServiceProvider.query.filter_by(email=email).first()
+
+        if provider and provider.check_password(password):
             session['sp_id'] = provider.id
             return redirect(url_for('service_provider'))
-        flash('Invalid credentials', 'danger')
+        else:
+            flash('Invalid credentials', 'danger')
+
     return render_template('login_provider.html')
 
 @app.route('/sp_logout')
@@ -221,31 +318,36 @@ def service_provider():
     )
 
 
-
 @app.route('/register_provider', methods=['GET', 'POST'])
 def register_provider():
     if request.method == 'POST':
         name = request.form.get('name')
         email = request.form.get('email')
         phone = request.form.get('phone')
+        province=request.form.get('province')
         skill = request.form.get('skill')
         latitude = float(request.form.get('latitude') or 0)
         longitude = float(request.form.get('longitude') or 0)
         password = request.form.get('password')
 
+        # Check if email already exists
         existing = ServiceProvider.query.filter_by(email=email).first()
         if existing:
             flash('Email already registered. Please login.', 'warning')
             return redirect(url_for('sp_login'))
+
+        # Hash the password
+        password_hash = generate_password_hash(password)
 
         new_provider = ServiceProvider(
             name=name,
             email=email,
             phone=phone,
             skill=skill,
+            province=province,
             latitude=latitude,
             longitude=longitude,
-            password=password
+            password_hash=password_hash  # Store hash instead of plain text
         )
         db.session.add(new_provider)
         db.session.commit()
@@ -328,32 +430,58 @@ def export_excel():
     df.to_excel(filepath, index=False)
     return send_from_directory('downloads', "claims_export.xlsx", as_attachment=True)
 
+from datetime import datetime
+
 @app.route('/send_notification', methods=['POST'])
 def send_notification():
     data = request.get_json()
     if not data:
         return jsonify({'status': 'No data received'}), 400
+
+    client_name = data.get('clientName')
+    job_desc    = data.get('jobDesc')
+    skill       = data.get('skill')
+    province    = data.get('province')
+    latitude    = data.get('latitude')
+    longitude   = data.get('longitude')
+    appt_raw    = data.get('appointment')
+
+    # --- Robust datetime parsing ---
+    appointment_time = None
+    if appt_raw:
+        for fmt in ("%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M", "%Y/%m/%d %H:%M"):
+            try:
+                appointment_time = datetime.strptime(appt_raw, fmt)
+                break
+            except ValueError:
+                continue
+    if not appointment_time:
+        appointment_time = datetime.utcnow()
+
     job = JobRequest(
-        client_name=data.get('clientName'),
-        job_description=data.get('jobDesc'),
-        skill_required=data.get('skill'),
-        appointment_time=data.get('appointment'),
-        distance=data.get('distance'),
-        latitude=data.get('latitude'),
-        longitude=data.get('longitude')
+        client_name=client_name,
+        job_description=job_desc,       # or job_description if you renamed
+        skill_required=skill,
+        appointment_time=appointment_time,  # ✅ datetime, not str
+        province=province,
+        latitude=float(latitude or 0),
+        longitude=float(longitude or 0)
     )
     db.session.add(job)
     db.session.commit()
+
     socketio.emit('receive_notification', {
         'clientName': job.client_name,
         'jobDesc': job.job_description,
         'skill': job.skill_required,
-        'appointment': job.appointment_time,
-        'distance': job.distance,
-        'latitude':job.latitude,
-        'longitude':job.longitude
+        'appointment': job.appointment_time.isoformat(),
+        'province': job.province,
+        'latitude': job.latitude,
+        'longitude': job.longitude
     })
-    return jsonify({'status': 'Notification sent and stored!'})
+
+    return jsonify({'status': 'Notification sent and stored!', 'job_id': job.id})
+
 
 
 
@@ -362,25 +490,89 @@ def submit_provider():
     name = request.form['name']
     email = request.form['email']
     phone = request.form['phone']
+    province=request.form['province']
     skill = request.form['skill']
-    latitude = request.form['latitude']
-    longitude = request.form['longitude']
-    password=request.form['password']
+    latitude = float(request.form.get('latitude') or 0)
+    longitude = float(request.form.get('longitude') or 0)
+    password = request.form['password']
+
+    # Hash the password before storing
+    password_hash = generate_password_hash(password)
 
     new_provider = ServiceProvider(
         name=name,
         email=email,
         phone=phone,
+        province=province,
         skill=skill,
         latitude=latitude,
         longitude=longitude,
-        password=password
+        password_hash=password_hash  # ✅ store hash
     )
 
     db.session.add(new_provider)
     db.session.commit()
     flash('Service provider registered successfully!')
-    return redirect(url_for('admin_panel'))  # or wherever you want to redirect
+    return redirect(url_for('admin_panel'))
+
+
+@app.route("/jobs", methods=["POST"])
+def create_job():
+    data = request.json or {}
+    job = JobRequest(
+        client_name=data["client_name"],
+        job_description=data["job_description"],
+        skill_required=data["skill_required"],
+        appointment_time=data.get("appointment_time"),
+        province=data.get("province"),
+        latitude=data.get("latitude"),
+        longitude=data.get("longitude")
+    )
+    db.session.add(job)
+    db.session.commit()
+
+    assigned = assign_job(job)
+    if assigned:
+        return jsonify({
+            "message": "Job created and assigned",
+            "job_id": job.id,
+            "provider_id": assigned.id
+        }), 200
+    else:
+        return jsonify({
+            "message": "Job created but no provider available",
+            "job_id": job.id
+        }), 200
+
+
+
+@app.route("/ratings", methods=["POST"])
+def create_rating():
+    data = request.json
+    rating = Rating(
+        service_provider_id=data["service_provider_id"],
+        job_request_id=data["job_request_id"],
+        score=data["score"],
+        comment=data.get("comment")
+    )
+    db.session.add(rating)
+    db.session.commit()
+    return jsonify({"message": "Rating added", "id": rating.id})
+
+
+@app.route("/payments", methods=["POST"])
+def create_payment():
+    data = request.json
+    payment = Payment(
+        service_provider_id=data["service_provider_id"],
+        job_request_id=data["job_request_id"],
+        amount=data["amount"],
+        status="Pending"
+    )
+    db.session.add(payment)
+    db.session.commit()
+    return jsonify({"message": "Payment recorded", "id": payment.id})
+
 
 # ---------------------------- MAIN ---------------------------- #
 
