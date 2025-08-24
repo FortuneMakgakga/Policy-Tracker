@@ -24,40 +24,40 @@
 
         <label for="appointment">Appointment Time:</label>
         <input type="text" id="appointment" placeholder="Enter time"><br>
-
-        <label for="distance">Distance:</label>
-        <input type="text" id="distance" placeholder="Enter distance"><br>
+        <label for="province">Province:</label>
+        <input type="text" id="province" placeholder="Enter province"><br>
+        <label for="latitude">Latitude:</label>
         <input type="float" id="latitude" placeholder="Latitude"><br>
+        <label for="longitude">Longitude:</label>
         <input type="float" id="longitude" placeholder="Latitude"><br>
 
 
         <button type="submit">Send</button>
     </form>
     <script>
-        const form = document.getElementById('notificationForm');
-        form.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const data = {
-                clientName: document.getElementById('clientName').value,
-                jobDesc: document.getElementById('jobDesc').value,
-                skill: document.getElementById('skill').value,
-                appointment: document.getElementById('appointment').value,
-                distance: document.getElementById('distance').value,
-                latitude: document.getElementById('latitude').value,
-                longitude: document.getElementById('longitude').value
-            };
-            const response = await fetch('/send_notification', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            });
-            const result = await response.json();
-            alert(result.status);
-            form.reset();
-        });
-    </script>
+     const form = document.getElementById('notificationForm');
+     form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+      const data = {
+       clientName: document.getElementById('clientName').value,
+       jobDesc: document.getElementById('jobDesc').value,
+       skill: document.getElementById('skill').value,
+       appointment: document.getElementById('appointment').value,
+       province: document.getElementById('province').value || null,   // add this input
+       latitude: parseFloat(document.getElementById('latitude').value || 0),
+       longitude: parseFloat(document.getElementById('longitude').value || 0)
+    };
+    const response = await fetch('/send_notification', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data)
+    });
+    const result = await response.json();
+    alert(result.status || 'Sent');
+    form.reset();
+  });
+</script>
+
 </body>
 </html>
 
