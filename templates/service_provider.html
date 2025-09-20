@@ -1,58 +1,179 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Service Provider</title>
-    <link rel="stylesheet" type="text/css" href="/static/styles.css">
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <title>Live Job Map</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+    <style>
+        body, html { margin:0; padding:0; height:100vh; width:100vw; font-family:Arial,sans-serif; display:flex; }
+        #map { flex:3; height:100vh; }
+        #job-panel { flex:1; background-color:#1a1a1a; color:#f0f0f0; padding:1rem; overflow-y:auto; border-left:2px solid #333; }
+        .job-entry { background:#2c2c2c; margin-bottom:1rem; padding:0.75rem; border-radius:10px; box-shadow:0 0 8px rgba(255,140,0,0.4); }
+        .job-entry.accepted { background-color: #2a4d2a; }
+        .job-entry.declined { background-color: #4d2a2a; }
+        .job-entry button { margin-right:5px; }
+        h2 { color: orange; }
+        .leaflet-control-container .leaflet-routing-container { font-size:16px; }
+
+        /* Floating logout button style */
+        .logout-btn {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            z-index: 1000;
+            background-color: #ff4d4d;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+        .logout-btn:hover { background-color: #e63939; }
+
+        /* Modal styles */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 2000; 
+            left: 0; top: 0;
+            width: 100%; height: 100%; 
+            background-color: rgba(0,0,0,0.6);
+            justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: #2c2c2c;
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            width: 300px;
+            text-align: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        .modal h3 { margin-bottom: 20px; }
+        .modal button {
+            padding: 10px 18px;
+            margin: 5px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-cancel { background: #666; color: white; }
+        .btn-cancel:hover { background: #555; }
+        .btn-confirm { background: #ff4d4d; color: white; }
+        .btn-confirm:hover { background: #e63939; }
+    </style>
 </head>
-<body class="sp-background">
-    <h1>Service Provider Notification Panel</h1>
-    <div id="notification-panel"></div>
+<body>
+    <div id="map"></div>
+
+    <!-- Floating logout button -->
+    <button class="logout-btn" onclick="showLogoutModal()">🚪 Logout</button>
+
+    <!-- Logout Confirmation Modal -->
+    <div id="logoutModal" class="modal">
+        <div class="modal-content">
+            <h3>Confirm Logout</h3>
+            <p>Are you sure you want to log out?</p>
+            <button class="btn-cancel" onclick="closeLogoutModal()">Cancel</button>
+            <button class="btn-confirm" onclick="logout()">Logout</button>
+        </div>
+    </div>
+
+    <div id="job-panel">
+        <h2>Incoming Jobs</h2>
+        <div id="job-list"></div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.min.js"></script>
+
     <script>
-        var socket = io();
-        socket.on('receive_notification', function(data) {
-            const panel = document.getElementById('notification-panel');
-            const card = document.createElement('div');
-            card.className = 'job-card';
-            card.innerHTML = `<h3>${data.clientName} - ${data.skill}</h3>
-                              <p>Job: ${data.jobDesc}</p>
-                              <p>Appointment: ${data.appointment}</p>
-                              <p>Distance: ${data.distance}</p>`;
-            panel.appendChild(card);
-        });
+    const provider = {
+        lat: {{ provider.latitude }},
+        lng: {{ provider.longitude }},
+        id: {{ provider.id|tojson }}
+    };
+
+    // Initialize map
+    const map = L.map('map').setView([provider.lat, provider.lng], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19, attribution:'© OpenStreetMap' }).addTo(map);
+    const providerMarker = L.marker([provider.lat, provider.lng]).addTo(map).bindPopup("Service Provider").openPopup();
+
+    const socket = io();
+    socket.on('connect', () => {
+        console.log("Socket connected");
+        socket.emit('join_room', { sp_id: provider.id });
+    });
+
+    socket.on('receive_notification', (data) => {
+        console.log("New job notification:", data);
+        addJob(data);
+    });
+
+    function addJob(jobData) {
+        const jobList = document.getElementById('job-list');
+        const div = document.createElement('div');
+        div.className = 'job-entry';
+        div.id = `job_${jobData.job_id}`;
+        div.innerHTML = `
+            <strong>${jobData.clientName}</strong><br/>
+            <em>${jobData.jobDesc}</em><br/>
+            Skill: ${jobData.skill}<br/>
+            Appointment: ${jobData.appointment}<br/>
+            Distance: ${jobData.distance ? jobData.distance.toFixed(2) + ' km' : 'N/A'}<br/>
+            <button class="accept-btn">✅ Accept</button>
+            <button class="decline-btn">❌ Decline</button>
+        `;
+
+        jobList.prepend(div);
+
+        div.querySelector('.accept-btn').addEventListener('click', () => handleJobAction(jobData.job_id, 'accept'));
+        div.querySelector('.decline-btn').addEventListener('click', () => handleJobAction(jobData.job_id, 'decline'));
+    }
+
+    function handleJobAction(jobId, action) {
+        const spId = provider.id;
+        const endpoint = action === 'accept' ? '/accept_job' : '/decline_job';
+        
+        fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ job_id: jobId, sp_id: spId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log(`${action} job response:`, data);
+            const jobDiv = document.getElementById(`job_${jobId}`);
+            jobDiv.classList.add(action === 'accept' ? 'accepted' : 'declined');
+            jobDiv.querySelector('.accept-btn').disabled = true;
+            jobDiv.querySelector('.decline-btn').disabled = true;
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    // Modal functions
+    function showLogoutModal() {
+        document.getElementById('logoutModal').style.display = 'flex';
+    }
+    function closeLogoutModal() {
+        document.getElementById('logoutModal').style.display = 'none';
+    }
+
+    // Logout
+    function logout() {
+        fetch('/logout', { method: 'GET' })
+            .then(() => {
+                window.location.href = '/sp_login';  // ✅ fixed redirect
+            })
+            .catch(err => console.error("Logout error:", err));
+    }
     </script>
+
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<!-- templates/service_provider.html:
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Service Provider</title>
-    <link rel="stylesheet" type="text/css" href="/static/styles.css">
-</head>
-<body class="sp-background">
-    <h1>Service Provider Notification Panel</h1>
-    <p>No new notifications</p>
-</body>
-</html> -->
