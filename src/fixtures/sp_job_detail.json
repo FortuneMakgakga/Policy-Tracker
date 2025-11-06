@@ -1,0 +1,83 @@
+{
+  "id": "JOB-2024-001",
+  "client_name": "David Brown",
+  "client_phone": "+27 82 234 5678",
+  "service_type": "Plumbing Repair",
+  "description": "Kitchen sink is leaking under the cabinet. Water damage visible on cabinet floor. Customer reports leak started 2 days ago and is getting worse. Needs urgent repair to prevent further damage.",
+  "address": "123 Oak Avenue, Sandton, Johannesburg",
+  "appointment_time": "2025-11-04T14:00:00Z",
+  "stage": "in_progress",
+  "status": "In Progress",
+  "photos": [
+    "https://images.unsplash.com/photo-1585704032915-c3400ca199e7?w=400&h=300&fit=crop&q=80",
+    "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=400&h=300&fit=crop&q=80"
+  ],
+  "timeline": [
+    {
+      "stage": "requested",
+      "label": "Job Requested",
+      "timestamp": "2025-11-04T12:30:00Z",
+      "completed": true,
+      "current": false
+    },
+    {
+      "stage": "assigned",
+      "label": "Assigned to You",
+      "timestamp": "2025-11-04T12:35:00Z",
+      "completed": true,
+      "current": false
+    },
+    {
+      "stage": "accepted",
+      "label": "Job Accepted",
+      "timestamp": "2025-11-04T12:40:00Z",
+      "completed": true,
+      "current": false
+    },
+    {
+      "stage": "en_route",
+      "label": "En Route",
+      "timestamp": "2025-11-04T13:30:00Z",
+      "completed": true,
+      "current": false
+    },
+    {
+      "stage": "arrived",
+      "label": "Arrived at Location",
+      "timestamp": "2025-11-04T13:45:00Z",
+      "completed": true,
+      "current": false
+    },
+    {
+      "stage": "in_progress",
+      "label": "Work Started",
+      "timestamp": "2025-11-04T14:00:00Z",
+      "completed": false,
+      "current": true
+    },
+    {
+      "stage": "quoted",
+      "label": "Quote Sent",
+      "completed": false,
+      "current": false
+    },
+    {
+      "stage": "approved",
+      "label": "Quote Approved",
+      "completed": false,
+      "current": false
+    },
+    {
+      "stage": "completed",
+      "label": "Work Completed",
+      "completed": false,
+      "current": false
+    },
+    {
+      "stage": "invoiced",
+      "label": "Invoice Sent",
+      "completed": false,
+      "current": false
+    }
+  ]
+}

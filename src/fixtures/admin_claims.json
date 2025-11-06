@@ -1,0 +1,57 @@
+[
+  {
+    "id": "CLM-001",
+    "job_id": "JOB-2024-035",
+    "client_name": "Patricia Moore",
+    "provider_name": "David Wilson",
+    "claim_type": "Quality Issue",
+    "description": "Work was completed but client reports that the leak returned within 24 hours. Requesting re-inspection and repair at no additional cost.",
+    "amount": 0,
+    "status": "pending",
+    "created_at": "2025-11-03T09:00:00Z"
+  },
+  {
+    "id": "CLM-002",
+    "job_id": "JOB-2024-032",
+    "client_name": "James Thompson",
+    "provider_name": "Rachel Adams",
+    "claim_type": "Damage Claim",
+    "description": "Provider damaged client's hardwood flooring during electrical work. Client is claiming R2,500 for floor repair.",
+    "amount": 2500.00,
+    "status": "pending",
+    "created_at": "2025-11-02T14:30:00Z"
+  },
+  {
+    "id": "CLM-003",
+    "job_id": "JOB-2024-028",
+    "client_name": "Sandra Martinez",
+    "provider_name": "Mike Johnson",
+    "claim_type": "Billing Dispute",
+    "description": "Client disputes invoice amount, stating that agreed quote was R1,200 but invoice shows R1,850. Provider claims additional work was required.",
+    "amount": 650.00,
+    "status": "pending",
+    "created_at": "2025-11-01T16:45:00Z"
+  },
+  {
+    "id": "CLM-004",
+    "job_id": "JOB-2024-025",
+    "client_name": "Daniel Kim",
+    "provider_name": "John Smith",
+    "claim_type": "No Show",
+    "description": "Provider did not show up for scheduled appointment and did not notify client. Client requests refund of booking fee.",
+    "amount": 150.00,
+    "status": "approved",
+    "created_at": "2025-10-30T10:15:00Z"
+  },
+  {
+    "id": "CLM-005",
+    "job_id": "JOB-2024-020",
+    "client_name": "Michelle Roberts",
+    "provider_name": "Emily Chen",
+    "claim_type": "Quality Issue",
+    "description": "Paint job showing streaks and uneven coverage. Client provided photos. Investigation showed client chose lowest-grade paint against provider recommendation.",
+    "amount": 0,
+    "status": "rejected",
+    "created_at": "2025-10-28T11:30:00Z"
+  }
+]

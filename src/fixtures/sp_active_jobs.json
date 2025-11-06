@@ -1,0 +1,29 @@
+[
+  {
+    "id": "JOB-2024-001",
+    "client_name": "David Brown",
+    "client_phone": "+27 82 234 5678",
+    "service_type": "Plumbing",
+    "description": "Kitchen sink leaking under cabinet",
+    "address": "123 Oak Avenue, Sandton, Johannesburg",
+    "lat": -26.1076,
+    "lng": 28.0567,
+    "distance_km": 1.2,
+    "appointment_time": "2025-11-04T14:00:00Z",
+    "stage": "in_progress"
+  },
+  {
+    "id": "JOB-2024-042",
+    "client_name": "Lisa Anderson",
+    "client_phone": "+27 83 345 6789",
+    "service_type": "Plumbing",
+    "description": "Burst pipe in bathroom, water everywhere",
+    "address": "567 Cedar Lane, Morningside, Johannesburg",
+    "lat": -26.1523,
+    "lng": 28.0678,
+    "distance_km": 5.8,
+    "appointment_time": "2025-11-04T18:00:00Z",
+    "stage": "accepted",
+    "priority": "high"
+  }
+]

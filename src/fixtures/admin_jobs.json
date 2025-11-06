@@ -1,0 +1,102 @@
+[
+  {
+    "id": "JOB-2024-001",
+    "client_name": "David Brown",
+    "provider_name": "John Smith",
+    "service_type": "Plumbing",
+    "status": "In Progress",
+    "stage": "in_progress",
+    "appointment_time": "2025-11-04T14:00:00Z",
+    "amount": 1250.00
+  },
+  {
+    "id": "JOB-2024-042",
+    "client_name": "Lisa Anderson",
+    "provider_name": "John Smith",
+    "service_type": "Plumbing",
+    "status": "Accepted",
+    "stage": "accepted",
+    "appointment_time": "2025-11-04T18:00:00Z",
+    "amount": null
+  },
+  {
+    "id": "JOB-2024-043",
+    "client_name": "Robert Taylor",
+    "provider_name": "Sarah Martinez",
+    "service_type": "Electrical",
+    "status": "Completed",
+    "stage": "completed",
+    "appointment_time": "2025-11-03T10:00:00Z",
+    "amount": 2150.00
+  },
+  {
+    "id": "JOB-2024-044",
+    "client_name": "Jennifer Lee",
+    "provider_name": "Mike Johnson",
+    "service_type": "HVAC",
+    "status": "Quote Sent",
+    "stage": "quoted",
+    "appointment_time": "2025-11-04T15:30:00Z",
+    "amount": 3850.00
+  },
+  {
+    "id": "JOB-2024-045",
+    "client_name": "Sarah Johnson",
+    "provider_name": null,
+    "service_type": "Electrical",
+    "status": "Requested",
+    "stage": "requested",
+    "appointment_time": "2025-11-04T16:00:00Z",
+    "amount": null
+  },
+  {
+    "id": "JOB-2024-046",
+    "client_name": "Michael Chen",
+    "provider_name": null,
+    "service_type": "HVAC",
+    "status": "Requested",
+    "stage": "requested",
+    "appointment_time": "2025-11-04T17:30:00Z",
+    "amount": null
+  },
+  {
+    "id": "JOB-2024-047",
+    "client_name": "Emma Williams",
+    "provider_name": null,
+    "service_type": "Plumbing",
+    "status": "Requested",
+    "stage": "requested",
+    "appointment_time": "2025-11-05T09:00:00Z",
+    "amount": null
+  },
+  {
+    "id": "JOB-2024-040",
+    "client_name": "Thomas Garcia",
+    "provider_name": "Emily Chen",
+    "service_type": "Carpentry",
+    "status": "Invoiced",
+    "stage": "invoiced",
+    "appointment_time": "2025-11-02T14:00:00Z",
+    "amount": 1680.00
+  },
+  {
+    "id": "JOB-2024-039",
+    "client_name": "Amanda White",
+    "provider_name": "Sarah Martinez",
+    "service_type": "Electrical",
+    "status": "Paid",
+    "stage": "paid",
+    "appointment_time": "2025-11-01T11:00:00Z",
+    "amount": 1950.00
+  },
+  {
+    "id": "JOB-2024-038",
+    "client_name": "Kevin Brown",
+    "provider_name": "John Smith",
+    "service_type": "Plumbing",
+    "status": "Paid",
+    "stage": "paid",
+    "appointment_time": "2025-10-31T13:30:00Z",
+    "amount": 890.00
+  }
+]

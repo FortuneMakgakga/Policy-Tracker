@@ -1,0 +1,62 @@
+[
+  {
+    "id": "PROV-001",
+    "name": "John Smith",
+    "phone": "+27 82 345 6789",
+    "email": "john.smith@homeassist.co.za",
+    "service_types": ["Plumbing", "General Repairs"],
+    "rating": 4.8,
+    "jobs_completed": 156,
+    "status": "active"
+  },
+  {
+    "id": "PROV-002",
+    "name": "Sarah Martinez",
+    "phone": "+27 83 456 7890",
+    "email": "sarah.martinez@homeassist.co.za",
+    "service_types": ["Electrical"],
+    "rating": 4.9,
+    "jobs_completed": 203,
+    "status": "active"
+  },
+  {
+    "id": "PROV-003",
+    "name": "Mike Johnson",
+    "phone": "+27 84 567 8901",
+    "email": "mike.johnson@homeassist.co.za",
+    "service_types": ["HVAC", "Appliance Repair"],
+    "rating": 4.6,
+    "jobs_completed": 98,
+    "status": "active"
+  },
+  {
+    "id": "PROV-004",
+    "name": "Emily Chen",
+    "phone": "+27 85 678 9012",
+    "email": "emily.chen@homeassist.co.za",
+    "service_types": ["Carpentry", "Painting"],
+    "rating": 4.7,
+    "jobs_completed": 124,
+    "status": "active"
+  },
+  {
+    "id": "PROV-005",
+    "name": "David Wilson",
+    "phone": "+27 86 789 0123",
+    "email": "david.wilson@homeassist.co.za",
+    "service_types": ["Plumbing", "HVAC"],
+    "rating": 4.5,
+    "jobs_completed": 87,
+    "status": "inactive"
+  },
+  {
+    "id": "PROV-006",
+    "name": "Rachel Adams",
+    "phone": "+27 87 890 1234",
+    "email": "rachel.adams@homeassist.co.za",
+    "service_types": ["Electrical", "Security Systems"],
+    "rating": 3.8,
+    "jobs_completed": 45,
+    "status": "suspended"
+  }
+]
