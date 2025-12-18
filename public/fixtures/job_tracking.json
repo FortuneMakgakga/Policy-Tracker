@@ -1,0 +1,13 @@
+{
+  "provider_lat": -26.1075,
+  "provider_lng": 28.0567,
+  "client_lat": -26.1056,
+  "client_lng": 28.0571,
+  "distance_m": 850,
+  "eta_minutes": 12,
+  "polyline": [
+    [-26.1075, 28.0567],
+    [-26.1065, 28.0569],
+    [-26.1056, 28.0571]
+  ]
+}

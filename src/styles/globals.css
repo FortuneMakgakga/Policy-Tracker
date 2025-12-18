@@ -202,3 +202,22 @@ html {
 body {
   background-color: #030712;
 }
+
+/* ===== Role-specific palettes (feel like separate apps) ===== */
+[data-theme="client"] {
+  --background: #0b1220;        /* deep navy */
+  --foreground: #e6edf3;
+  --primary: #60a5fa;           /* blue */
+}
+
+[data-theme="sp"] {
+  --background: #0a0f1a;        /* very dark */
+  --foreground: #e5e7eb;
+  --primary: #34d399;           /* green */
+}
+
+[data-theme="admin"] {
+  --background: #0f172a;        /* slate navy */
+  --foreground: #e2e8f0;
+  --primary: #a78bfa;           /* violet */
+}
