@@ -19,22 +19,70 @@ export default function RegisterClient() {
   });
 
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  function handleChange(e: any) {
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     setForm({ ...form, [e.target.name]: e.target.value });
   }
 
-  async function handleSubmit(e: any) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setError("");
+    setSuccess("");
+
+    if (
+      !form.name ||
+      !form.email ||
+      !form.phone ||
+      !form.address ||
+      !form.password ||
+      !form.confirmPassword
+    ) {
+      setError("Please fill in all fields.");
+      return;
+    }
+
+    if (form.password !== form.confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
     setLoading(true);
 
-    // TODO: Hook up to Flask backend
-    // await fetch(`${API_URL}/client/register`, { ... })
+    try {
+      const response = await fetch("https://opulent-happiness-7xvg5xp75vq3p95r-5000.app.github.dev/api/client/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          phone: form.phone,
+          password: form.password,
+          address: form.address,
+        }),
+      });
 
-    setTimeout(() => {
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || "Registration failed.");
+        return;
+      }
+
+      setSuccess("Account created successfully.");
+
+      setTimeout(() => {
+        navigate("/login-client");
+      }, 1000);
+    } catch (err) {
+      setError("Could not connect to server.");
+    } finally {
       setLoading(false);
-      navigate("/client/home");
-    }, 1000);
+    }
   }
 
   return (
@@ -51,7 +99,6 @@ export default function RegisterClient() {
 
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            
             <div>
               <Label className="text-gray-300">Full Name</Label>
               <Input
@@ -125,6 +172,14 @@ export default function RegisterClient() {
               />
             </div>
 
+            {error && (
+              <p className="text-red-400 text-sm">{error}</p>
+            )}
+
+            {success && (
+              <p className="text-green-400 text-sm">{success}</p>
+            )}
+
             <Button
               type="submit"
               className="w-full mt-4"
@@ -139,7 +194,7 @@ export default function RegisterClient() {
 
             <p className="text-center text-gray-400 text-sm mt-4">
               Already have an account?{" "}
-              <Link to="/login" className="text-blue-400 hover:underline">
+              <Link to="/login-client" className="text-blue-400 hover:underline">
                 Login here
               </Link>
             </p>
