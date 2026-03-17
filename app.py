@@ -4,13 +4,15 @@ from flask_admin import Admin, AdminIndexView
 from flask_admin.contrib.sqla import ModelView
 from flask_admin.actions import action
 from flask_socketio import SocketIO, join_room
+from flask_cors import CORS
+from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
+from functools import wraps
+from datetime import datetime, timedelta
 import pandas as pd
 import os
-from functools import wraps
 import math
-from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, timedelta
-from flask_cors import CORS
+import uuid
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
@@ -18,8 +20,13 @@ app.secret_key = 'supersecretkey'
 app.permanent_session_lifetime = timedelta(minutes=30)
 
 basedir = os.path.abspath(os.path.dirname(__file__))
+upload_folder = os.path.join(basedir, "uploads")
+os.makedirs(upload_folder, exist_ok=True)
+
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'claims.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['UPLOAD_FOLDER'] = upload_folder
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
 
 db = SQLAlchemy(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -109,9 +116,25 @@ class JobRequest(db.Model):
     longitude = db.Column(db.Float)
 
     assigned_sp_id = db.Column(db.Integer, db.ForeignKey('service_provider.id'))
-    status = db.Column(db.String(50), default="Open")  # Open, Assigned, Accepted, Cancelled, Completed
+
+    # High-level business status
+    status = db.Column(db.String(50), default="Open")  # Open, Assigned, Active, Cancelled, Completed
+
+    # Operational workflow stage
+    stage = db.Column(db.String(50), default="new")  # new, assigned, accepted, arrived, in_progress, paused, quoted, approved, completed, invoiced
+
+    pause_reason = db.Column(db.Text)
+    completion_notes = db.Column(db.Text)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    declined_sps = db.Column(db.Text, default="")  # CSV of sp_ids
+    accepted_at = db.Column(db.DateTime)
+    arrived_at = db.Column(db.DateTime)
+    started_at = db.Column(db.DateTime)
+    paused_at = db.Column(db.DateTime)
+    resumed_at = db.Column(db.DateTime)
+    completed_at = db.Column(db.DateTime)
+
+    declined_sps = db.Column(db.Text, default="")
 
 
 class JobDecline(db.Model):
@@ -125,15 +148,22 @@ class JobHistory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     job_id = db.Column(db.Integer, db.ForeignKey('job_request.id'), nullable=False)
     sp_id = db.Column(db.Integer, db.ForeignKey('service_provider.id'), nullable=True)
-    action = db.Column(db.String(50), nullable=False)  # Created, Assigned, Accepted, Declined, Cancelled
+    action = db.Column(db.String(50), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class JobPhoto(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    job_request_id = db.Column(db.Integer, db.ForeignKey('job_request.id'), nullable=False)
+    image_url = db.Column(db.String(500), nullable=False)
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
 class Rating(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     service_provider_id = db.Column(db.Integer, db.ForeignKey('service_provider.id'))
     job_request_id = db.Column(db.Integer, db.ForeignKey('job_request.id'))
-    score = db.Column(db.Integer, nullable=False)  # 1–5
+    score = db.Column(db.Integer, nullable=False)
     comment = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -260,6 +290,7 @@ admin.add_view(SecuredModelView(Payment, db.session))
 admin.add_view(SecuredModelView(Quote, db.session))
 admin.add_view(SecuredModelView(Invoice, db.session))
 admin.add_view(SecuredModelView(JobDecline, db.session))
+admin.add_view(SecuredModelView(JobPhoto, db.session))
 
 
 # ============================
@@ -292,10 +323,6 @@ def parse_dt(value):
 
 
 def validate_location_input(address=None, latitude=None, longitude=None):
-    """
-    Option A validation:
-    require either address text OR valid latitude/longitude.
-    """
     has_address = bool(address and str(address).strip())
 
     has_coords = latitude is not None and longitude is not None
@@ -324,6 +351,49 @@ def record_job_history(job_id, action, sp_id=None):
     db.session.commit()
 
 
+def get_job_photos(job_id):
+    photos = JobPhoto.query.filter_by(job_request_id=job_id).order_by(JobPhoto.uploaded_at.asc()).all()
+    return [p.image_url for p in photos]
+
+
+def serialize_job(job):
+    return {
+        'id': str(job.id),
+        'client_name': job.client_name,
+        'client_phone': job.client_phone,
+        'service_type': job.skill_required,
+        'description': job.job_description,
+        'address': job.client_address,
+        'appointment_time': job.appointment_time.isoformat() if job.appointment_time else None,
+        'stage': job.stage or 'new',
+        'status': job.status,
+        'photos': get_job_photos(job.id),
+        'lat': job.latitude,
+        'lng': job.longitude,
+        'province': job.province,
+        'assigned_sp_id': job.assigned_sp_id,
+        'pause_reason': job.pause_reason,
+        'completion_notes': job.completion_notes,
+        'created_at': job.created_at.isoformat() if job.created_at else None,
+        'accepted_at': job.accepted_at.isoformat() if job.accepted_at else None,
+        'arrived_at': job.arrived_at.isoformat() if job.arrived_at else None,
+        'started_at': job.started_at.isoformat() if job.started_at else None,
+        'paused_at': job.paused_at.isoformat() if job.paused_at else None,
+        'resumed_at': job.resumed_at.isoformat() if job.resumed_at else None,
+        'completed_at': job.completed_at.isoformat() if job.completed_at else None,
+    }
+
+
+def emit_job_update(job):
+    payload = serialize_job(job)
+
+    if job.assigned_sp_id:
+        socketio.emit('job_updated', payload, room=f"sp_{job.assigned_sp_id}")
+
+    if job.client_id:
+        socketio.emit('job_updated', payload, room=f"client_{job.client_id}")
+
+
 def assign_job(job, max_distance_km=20):
     """Allocate job to the best provider."""
     providers = ServiceProvider.query.filter_by(
@@ -334,7 +404,10 @@ def assign_job(job, max_distance_km=20):
 
     eligible = []
     for sp in providers:
-        if sp.latitude is not None and sp.longitude is not None and job.latitude is not None and job.longitude is not None:
+        if (
+            sp.latitude is not None and sp.longitude is not None
+            and job.latitude is not None and job.longitude is not None
+        ):
             dist = calculate_distance(job.latitude, job.longitude, sp.latitude, sp.longitude)
             if dist <= max_distance_km:
                 eligible.append(sp)
@@ -347,9 +420,43 @@ def assign_job(job, max_distance_km=20):
     selected = eligible[0]
     job.assigned_sp_id = selected.id
     job.status = "Assigned"
+    job.stage = "assigned"
     selected.last_assigned_at = datetime.utcnow()
+
     db.session.commit()
     return selected
+
+
+def update_job_stage_values(job, new_stage, extra=None):
+    extra = extra or {}
+    job.stage = new_stage
+
+    if new_stage == 'assigned':
+        job.status = 'Assigned'
+    elif new_stage in ('accepted', 'arrived', 'in_progress', 'paused', 'quoted', 'approved'):
+        job.status = 'Active'
+    elif new_stage in ('completed', 'invoiced'):
+        job.status = 'Completed'
+    elif new_stage == 'cancelled':
+        job.status = 'Cancelled'
+
+    if new_stage == 'accepted':
+        job.accepted_at = datetime.utcnow()
+    elif new_stage == 'arrived':
+        job.arrived_at = datetime.utcnow()
+    elif new_stage == 'in_progress':
+        if not job.started_at:
+            job.started_at = datetime.utcnow()
+        else:
+            job.resumed_at = datetime.utcnow()
+    elif new_stage == 'paused':
+        job.paused_at = datetime.utcnow()
+        job.pause_reason = extra.get('pause_reason')
+    elif new_stage == 'completed':
+        job.completed_at = datetime.utcnow()
+        job.completion_notes = extra.get('completion_notes') or extra.get('notes')
+    elif new_stage == 'cancelled':
+        job.completion_notes = extra.get('reason')
 
 
 # ============================
@@ -365,6 +472,38 @@ def home():
 def track():
     return render_template('register_claim.html')
 
+
+@app.route('/register_claim')
+def register_claim():
+    return render_template('register_claim.html')
+
+
+@app.route('/client')
+def client():
+    return render_template('client.html')
+
+
+@app.route('/service-provider')
+@sp_login_required
+def service_provider():
+    provider = db.session.get(ServiceProvider, session['sp_id'])
+    if not provider:
+        return redirect(url_for('sp_login'))
+
+    jobs = JobRequest.query.filter(JobRequest.skill_required == provider.skill).all()
+
+    return render_template(
+        'service_provider.html',
+        provider=provider,
+        jobs=jobs,
+        provider_lat=provider.latitude,
+        provider_lng=provider.longitude
+    )
+
+
+# ============================
+# CLAIM ROUTES
+# ============================
 
 @app.route('/api/claims/<int:claim_id>')
 def get_claim(claim_id):
@@ -386,11 +525,6 @@ def get_claim(claim_id):
     return jsonify({'error': 'Claim not found'}), 404
 
 
-@app.route('/register_claim')
-def register_claim():
-    return render_template('register_claim.html')
-
-
 @app.route('/submit_claim', methods=['POST'])
 def submit_claim():
     data = request.get_json() or {}
@@ -408,11 +542,6 @@ def submit_claim():
     db.session.add(new_claim)
     db.session.commit()
     return jsonify({'message': 'Claim submitted successfully!', 'claim_id': new_claim.id}), 201
-
-
-@app.route('/client')
-def client():
-    return render_template('client.html')
 
 
 # ============================
@@ -503,19 +632,7 @@ def client_jobs():
         return jsonify({'error': 'client_id required'}), 400
 
     jobs = JobRequest.query.filter_by(client_id=int(client_id)).order_by(JobRequest.created_at.desc()).all()
-    return jsonify([
-        {
-            'job_id': j.id,
-            'status': j.status,
-            'desc': j.job_description,
-            'skill_required': j.skill_required,
-            'appointment': j.appointment_time.isoformat() if j.appointment_time else None,
-            'latitude': j.latitude,
-            'longitude': j.longitude,
-            'assigned_sp_id': j.assigned_sp_id
-        }
-        for j in jobs
-    ]), 200
+    return jsonify([serialize_job(j) for j in jobs]), 200
 
 
 @app.route('/api/client/job/<int:job_id>/cancel', methods=['POST'])
@@ -531,9 +648,10 @@ def client_cancel_job(job_id):
     if job.status in ('Completed', 'Cancelled'):
         return jsonify({'error': f'Job already {job.status}'}), 400
 
-    job.status = 'Cancelled'
+    update_job_stage_values(job, 'cancelled', {'reason': 'Cancelled by client'})
     db.session.commit()
     record_job_history(job.id, 'Cancelled', job.assigned_sp_id)
+    emit_job_update(job)
 
     if job.assigned_sp_id:
         socketio.emit('job_cancelled', {'job_id': job.id}, room=f"sp_{job.assigned_sp_id}")
@@ -544,64 +662,6 @@ def client_cancel_job(job_id):
 # ============================
 # SERVICE PROVIDER AUTH
 # ============================
-
-@app.route('/api/sp/login', methods=['POST'])
-def api_sp_login():
-    data = request.get_json() or {}
-
-    email = data.get('email')
-    password = data.get('password')
-
-    sp = ServiceProvider.query.filter_by(email=email).first()
-    if not sp or not sp.check_password(password):
-        return jsonify({'error': 'Invalid credentials'}), 401
-
-    session.clear()
-    session['sp_id'] = sp.id
-    session.permanent = True
-    
-
-    return jsonify({
-        'message': 'Service provider logged in successfully',
-        'sp_id': sp.id,
-        'name': sp.name,
-        'email': sp.email
-    }), 200
-
-
-@app.route('/api/sp/logout', methods=['POST'])
-def api_sp_logout():
-    session.pop('sp_id', None)
-    return jsonify({'message': 'Service provider logged out successfully'}), 200
-
-
-@app.route('/sp_login', methods=['GET', 'POST'])
-def sp_login():
-    error = None
-    if request.method == 'POST':
-        email = request.form.get('email')
-        password = request.form.get('password')
-
-        sp = ServiceProvider.query.filter_by(email=email).first()
-        if sp and sp.check_password(password):
-            session['sp_id'] = sp.id
-            session.permanent = True
-            return redirect(url_for('service_provider'))
-        else:
-            error = 'Invalid Credentials. Please try again.'
-
-    return render_template('login_provider.html', error=error)
-
-
-
-
-@app.route('/sp_logout')
-@sp_login_required
-def sp_logout():
-    session.pop('sp_id', None)
-    flash('Logged out successfully.', 'info')
-    return redirect(url_for('sp_login'))
-
 
 @app.route('/api/sp/register', methods=['POST'])
 def api_sp_register():
@@ -643,23 +703,59 @@ def api_sp_register():
     }), 201
 
 
+@app.route('/api/sp/login', methods=['POST'])
+def api_sp_login():
+    data = request.get_json() or {}
 
-@app.route('/service-provider')
+    email = data.get('email')
+    password = data.get('password')
+
+    sp = ServiceProvider.query.filter_by(email=email).first()
+    if not sp or not sp.check_password(password):
+        return jsonify({'error': 'Invalid credentials'}), 401
+
+    session.clear()
+    session['sp_id'] = sp.id
+    session.permanent = True
+
+    return jsonify({
+        'message': 'Service provider logged in successfully',
+        'sp_id': sp.id,
+        'name': sp.name,
+        'email': sp.email
+    }), 200
+
+
+@app.route('/api/sp/logout', methods=['POST'])
+def api_sp_logout():
+    session.pop('sp_id', None)
+    return jsonify({'message': 'Service provider logged out successfully'}), 200
+
+
+@app.route('/sp_login', methods=['GET', 'POST'])
+def sp_login():
+    error = None
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+
+        sp = ServiceProvider.query.filter_by(email=email).first()
+        if sp and sp.check_password(password):
+            session['sp_id'] = sp.id
+            session.permanent = True
+            return redirect(url_for('service_provider'))
+        else:
+            error = 'Invalid Credentials. Please try again.'
+
+    return render_template('login_provider.html', error=error)
+
+
+@app.route('/sp_logout')
 @sp_login_required
-def service_provider():
-    provider = db.session.get(ServiceProvider, session['sp_id'])
-    if not provider:
-        return redirect(url_for('sp_login'))
-
-    jobs = JobRequest.query.filter(JobRequest.skill_required == provider.skill).all()
-
-    return render_template(
-        'service_provider.html',
-        provider=provider,
-        jobs=jobs,
-        provider_lat=provider.latitude,
-        provider_lng=provider.longitude
-    )
+def sp_logout():
+    session.pop('sp_id', None)
+    flash('Logged out successfully.', 'info')
+    return redirect(url_for('sp_login'))
 
 
 @app.route('/register_provider', methods=['GET', 'POST'])
@@ -783,7 +879,24 @@ def export_excel():
 
 
 # ============================
-# JOB NOTIFICATIONS & BROADCASTS
+# SOCKET EVENTS
+# ============================
+
+@socketio.on('join_room')
+def handle_join_room(data):
+    sp_id = data.get('sp_id')
+    client_id = data.get('client_id')
+
+    if sp_id is not None:
+        join_room(f"sp_{sp_id}")
+        join_room('all_sp_room')
+
+    if client_id is not None:
+        join_room(f"client_{client_id}")
+
+
+# ============================
+# JOB NOTIFICATIONS & CREATION
 # ============================
 
 @app.route('/send_notification', methods=['POST'])
@@ -797,7 +910,6 @@ def send_notification():
     skill = data.get('skill')
     province = data.get('province')
     address = data.get('address')
-
     latitude = data.get('latitude')
     longitude = data.get('longitude')
 
@@ -807,7 +919,6 @@ def send_notification():
 
     latitude = float(latitude) if latitude is not None else None
     longitude = float(longitude) if longitude is not None else None
-
     appointment_time = parse_dt(data.get('appointment')) or datetime.utcnow()
 
     job = JobRequest(
@@ -838,43 +949,6 @@ def send_notification():
     }, room='all_sp_room')
 
     return jsonify({'status': 'Notifications sent to all SPs', 'job_id': job.id}), 201
-
-
-@socketio.on('join_room')
-def handle_join_room(data):
-    sp_id = data.get('sp_id')
-    if sp_id is not None:
-        room_name = f"sp_{str(sp_id)}"
-        join_room(room_name)
-        join_room('all_sp_room')
-
-
-@app.route('/submit_provider', methods=['POST'])
-def submit_provider():
-    name = request.form['name']
-    email = request.form['email']
-    phone = request.form['phone']
-    province = request.form['province']
-    skill = request.form['skill']
-    latitude = float(request.form.get('latitude') or 0)
-    longitude = float(request.form.get('longitude') or 0)
-    password = request.form['password']
-
-    new_provider = ServiceProvider(
-        name=name,
-        email=email,
-        phone=phone,
-        province=province,
-        skill=skill,
-        latitude=latitude,
-        longitude=longitude,
-        password_hash=generate_password_hash(password)
-    )
-
-    db.session.add(new_provider)
-    db.session.commit()
-    flash('Service provider registered successfully!')
-    return redirect(url_for('admin_panel'))
 
 
 @app.route('/jobs', methods=['POST'])
@@ -911,7 +985,9 @@ def create_job():
         appointment_time=appointment_time,
         province=data.get("province"),
         latitude=latitude,
-        longitude=longitude
+        longitude=longitude,
+        status="Open",
+        stage="new"
     )
     db.session.add(job)
     db.session.commit()
@@ -921,6 +997,23 @@ def create_job():
     assigned = assign_job(job)
     if assigned:
         record_job_history(job.id, 'Assigned', assigned.id)
+
+        socketio.emit('job_assigned', {
+            'job_id': job.id,
+            'client_name': job.client_name,
+            'client_phone': job.client_phone,
+            'service_type': job.skill_required,
+            'description': job.job_description,
+            'address': job.client_address,
+            'lat': job.latitude,
+            'lng': job.longitude,
+            'appointment_time': job.appointment_time.isoformat() if job.appointment_time else None,
+            'stage': job.stage,
+            'status': job.status
+        }, room=f"sp_{assigned.id}")
+
+        emit_job_update(job)
+
         return jsonify({
             "message": "Job created and assigned",
             "job_id": job.id,
@@ -936,73 +1029,90 @@ def create_job():
 @app.route('/api/jobs/open', methods=['GET'])
 def get_open_jobs():
     jobs = JobRequest.query.filter(JobRequest.status.in_(["Open", "Assigned"])).all()
-    return jsonify([
-        {
-            "job_id": j.id,
-            "client_name": j.client_name,
-            "job_description": j.job_description,
-            "skill_required": j.skill_required,
-            "appointment_time": j.appointment_time.isoformat() if j.appointment_time else None,
-            "province": j.province,
-            "latitude": j.latitude,
-            "longitude": j.longitude,
-            "status": j.status
-        }
-        for j in jobs
-    ]), 200
+    return jsonify([serialize_job(j) for j in jobs]), 200
 
 
-# --- Accept Job ---
-@app.route('/accept_job', methods=['POST'])
-def accept_job():
-    data = request.get_json()
-    job_id = data.get('job_id')
-    sp_id = data.get('sp_id')
+@app.route('/api/jobs/<int:job_id>', methods=['GET'])
+def get_job_detail(job_id):
+    job = db.session.get(JobRequest, job_id)
+    if not job:
+        return jsonify({'error': 'Job not found'}), 404
+    return jsonify(serialize_job(job)), 200
+
+
+@app.route('/api/sp/jobs', methods=['GET'])
+def get_sp_jobs():
+    sp_id = session.get('sp_id') or request.args.get('sp_id')
+    if not sp_id:
+        return jsonify({'error': 'sp_id required'}), 400
+
+    jobs = JobRequest.query.filter_by(assigned_sp_id=int(sp_id)).order_by(JobRequest.created_at.desc()).all()
+    return jsonify([serialize_job(j) for j in jobs]), 200
+
+
+# ============================
+# JOB ACTIONS
+# ============================
+
+@app.route('/api/jobs/<int:job_id>/accept', methods=['POST'])
+def accept_job(job_id):
+    data = request.get_json() or {}
+    sp_id = data.get('sp_id') or session.get('sp_id')
+
+    if not sp_id:
+        return jsonify({'error': 'sp_id required'}), 400
 
     job = db.session.get(JobRequest, job_id)
-    sp = db.session.get(ServiceProvider, sp_id)
+    sp = db.session.get(ServiceProvider, int(sp_id))
 
     if not job or not sp:
-        return jsonify({'status': 'Job or SP not found'}), 404
+        return jsonify({'error': 'Job or SP not found'}), 404
 
-    if job.status in ('Assigned', 'Accepted'):
-        return jsonify({'status': 'Job already taken'}), 400
+    if job.assigned_sp_id and job.assigned_sp_id != sp.id:
+        return jsonify({'error': 'This job is assigned to another service provider'}), 403
+
+    if job.status in ('Cancelled', 'Completed'):
+        return jsonify({'error': f'Cannot accept a {job.status.lower()} job'}), 400
 
     job.assigned_sp_id = sp.id
-    job.status = 'Accepted'
+    update_job_stage_values(job, 'accepted')
 
     try:
         db.session.commit()
         record_job_history(job.id, 'Accepted', sp.id)
     except Exception as e:
         db.session.rollback()
-        return jsonify({'status': 'Error committing transaction', 'error': str(e)}), 500
+        return jsonify({'error': str(e)}), 500
 
-    other_sps = ServiceProvider.query.filter(
-        ServiceProvider.id != sp.id,
-        ServiceProvider.is_available == True
-    ).all()
-
-    for other_sp in other_sps:
-        socketio.emit('job_taken', {'job_id': job.id}, room=f"sp_{other_sp.id}")
-
-    return jsonify({
-        'status': 'Job accepted',
+    socketio.emit('job_accepted', {
         'job_id': job.id,
-        'latitude': job.latitude,
-        'longitude': job.longitude
-    }), 200
+        'sp_id': sp.id,
+        'status': job.status,
+        'stage': job.stage
+    }, room=f"sp_{sp.id}")
+
+    emit_job_update(job)
+
+    return jsonify({'message': 'Job accepted', 'job_id': job.id, 'job': serialize_job(job)}), 200
 
 
-# --- Decline Job ---
+@app.route('/accept_job', methods=['POST'])
+def accept_job_legacy():
+    data = request.get_json() or {}
+    job_id = data.get('job_id')
+    if not job_id:
+        return jsonify({'error': 'job_id required'}), 400
+    return accept_job(int(job_id))
+
+
 @app.route('/decline_job', methods=['POST'])
 def decline_job():
-    data = request.get_json()
+    data = request.get_json() or {}
     job_id = data.get('job_id')
-    sp_id = data.get('sp_id')
+    sp_id = data.get('sp_id') or session.get('sp_id')
 
     job = db.session.get(JobRequest, job_id)
-    sp = db.session.get(ServiceProvider, sp_id)
+    sp = db.session.get(ServiceProvider, int(sp_id)) if sp_id else None
 
     if not job or not sp:
         return jsonify({'status': 'Job or SP not found'}), 404
@@ -1017,67 +1127,95 @@ def decline_job():
         return jsonify({'status': 'Error committing decline', 'error': str(e)}), 500
 
     socketio.emit('job_declined', {'job_id': job.id, 'sp_id': sp.id}, room=f"sp_{sp.id}")
-
     return jsonify({'status': 'Job declined', 'job_id': job.id}), 200
 
 
-@app.route('/ratings', methods=['POST'])
-def create_rating():
-    data = request.json or {}
-    rating = Rating(
-        service_provider_id=data["service_provider_id"],
-        job_request_id=data["job_request_id"],
-        score=data["score"],
-        comment=data.get("comment")
-    )
-    db.session.add(rating)
-    db.session.commit()
-    return jsonify({"message": "Rating added", "id": rating.id}), 201
+@app.route('/api/jobs/<int:job_id>/stage', methods=['PATCH'])
+def update_job_stage(job_id):
+    data = request.get_json() or {}
+    new_stage = data.get('stage')
+
+    allowed_stages = {
+        'accepted', 'arrived', 'in_progress', 'paused',
+        'quoted', 'approved', 'completed', 'invoiced'
+    }
+
+    if new_stage not in allowed_stages:
+        return jsonify({'error': 'Invalid stage'}), 400
+
+    job = db.session.get(JobRequest, job_id)
+    if not job:
+        return jsonify({'error': 'Job not found'}), 404
+
+    if job.status in ('Cancelled',):
+        return jsonify({'error': 'Cannot update a cancelled job'}), 400
+
+    try:
+        update_job_stage_values(job, new_stage, data)
+        db.session.commit()
+        record_job_history(job.id, f"Stage:{new_stage}", job.assigned_sp_id)
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+    emit_job_update(job)
+    return jsonify(serialize_job(job)), 200
 
 
-@app.route('/ratings/sp/<int:sp_id>', methods=['GET'])
-def get_ratings_for_sp(sp_id):
-    ratings = Rating.query.filter_by(service_provider_id=sp_id).all()
-    return jsonify([
-        {
-            "id": r.id,
-            "score": r.score,
-            "comment": r.comment,
-            "job_id": r.job_request_id,
-            "created_at": r.created_at.isoformat()
-        }
-        for r in ratings
-    ]), 200
+# ============================
+# JOB PHOTOS
+# ============================
+
+@app.route('/uploads/<path:filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 
-@app.route('/payments', methods=['POST'])
-def create_payment():
-    data = request.json or {}
-    payment = Payment(
-        service_provider_id=data["service_provider_id"],
-        job_request_id=data["job_request_id"],
-        amount=data["amount"],
-        status=data.get("status", "Pending")
-    )
-    db.session.add(payment)
-    db.session.commit()
-    return jsonify({"message": "Payment recorded", "id": payment.id}), 201
+@app.route('/api/jobs/<int:job_id>/photos', methods=['POST'])
+def upload_job_photos(job_id):
+    job = db.session.get(JobRequest, job_id)
+    if not job:
+        return jsonify({'error': 'Job not found'}), 404
+
+    files = request.files.getlist('photos')
+    if not files:
+        return jsonify({'error': 'No photos uploaded'}), 400
+
+    saved_urls = []
+
+    try:
+        for file in files:
+            if not file or not file.filename:
+                continue
+
+            original_name = secure_filename(file.filename)
+            ext = os.path.splitext(original_name)[1].lower()
+            unique_name = f"{uuid.uuid4().hex}{ext}"
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_name)
+            file.save(file_path)
+
+            image_url = f"/uploads/{unique_name}"
+            photo = JobPhoto(job_request_id=job.id, image_url=image_url)
+            db.session.add(photo)
+            saved_urls.append(image_url)
+
+        db.session.commit()
+        record_job_history(job.id, 'PhotosUploaded', job.assigned_sp_id)
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+    emit_job_update(job)
+
+    return jsonify({
+        'message': 'Photos uploaded successfully',
+        'photos': get_job_photos(job.id)
+    }), 200
 
 
-@app.route('/payments/sp/<int:sp_id>', methods=['GET'])
-def get_payments_by_sp(sp_id):
-    payments = Payment.query.filter_by(service_provider_id=sp_id).all()
-    return jsonify([
-        {
-            "id": p.id,
-            "job_request_id": p.job_request_id,
-            "amount": p.amount,
-            "status": p.status,
-            "created_at": p.created_at.isoformat()
-        }
-        for p in payments
-    ]), 200
-
+# ============================
+# QUOTES
+# ============================
 
 @app.route('/quotes', methods=['POST'])
 def create_quote():
@@ -1094,6 +1232,76 @@ def create_quote():
     db.session.commit()
 
     return jsonify({"message": "Quote created", "id": quote.id}), 201
+
+
+@app.route('/api/jobs/<int:job_id>/quote', methods=['POST'])
+def create_job_quote(job_id):
+    data = request.get_json() or {}
+    job = db.session.get(JobRequest, job_id)
+
+    if not job:
+        return jsonify({'error': 'Job not found'}), 404
+
+    if not job.client_id:
+        return jsonify({'error': 'Job has no linked client'}), 400
+
+    total_amount = data.get('total_amount')
+    if total_amount is None:
+        return jsonify({'error': 'total_amount is required'}), 400
+
+    try:
+        total_amount = float(total_amount)
+    except (TypeError, ValueError):
+        return jsonify({'error': 'total_amount must be numeric'}), 400
+
+    details = data.get('details', '')
+    if isinstance(details, (list, dict)):
+        details = str(details)
+
+    quote = Quote(
+        job_request_id=job.id,
+        client_id=job.client_id,
+        service_provider_id=job.assigned_sp_id,
+        total_amount=total_amount,
+        details=details,
+        status='Pending'
+    )
+    db.session.add(quote)
+    update_job_stage_values(job, 'quoted')
+
+    try:
+        db.session.commit()
+        record_job_history(job.id, 'Quoted', job.assigned_sp_id)
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+    emit_job_update(job)
+    return jsonify(serialize_job(job)), 201
+
+
+@app.route('/api/jobs/<int:job_id>/approve-quote', methods=['POST'])
+def approve_job_quote(job_id):
+    job = db.session.get(JobRequest, job_id)
+    if not job:
+        return jsonify({'error': 'Job not found'}), 404
+
+    quote = Quote.query.filter_by(job_request_id=job.id).order_by(Quote.created_at.desc()).first()
+    if not quote:
+        return jsonify({'error': 'No quote found for this job'}), 404
+
+    quote.status = 'Approved'
+    update_job_stage_values(job, 'approved')
+
+    try:
+        db.session.commit()
+        record_job_history(job.id, 'QuoteApproved', job.assigned_sp_id)
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+    emit_job_update(job)
+    return jsonify(serialize_job(job)), 200
 
 
 @app.route('/quotes/client/<int:client_id>', methods=['GET'])
@@ -1130,6 +1338,10 @@ def get_quotes_by_job(job_id):
     ]), 200
 
 
+# ============================
+# INVOICES
+# ============================
+
 @app.route('/invoices', methods=['POST'])
 def create_invoice():
     data = request.json or {}
@@ -1145,6 +1357,50 @@ def create_invoice():
     db.session.commit()
 
     return jsonify({"message": "Invoice created", "id": invoice.id}), 201
+
+
+@app.route('/api/jobs/<int:job_id>/complete', methods=['POST'])
+def complete_job(job_id):
+    data = request.get_json() or {}
+    job = db.session.get(JobRequest, job_id)
+
+    if not job:
+        return jsonify({'error': 'Job not found'}), 404
+
+    if not job.client_id:
+        return jsonify({'error': 'Job has no linked client'}), 400
+
+    if len(get_job_photos(job.id)) == 0:
+        return jsonify({'error': 'At least one job photo is required before completion'}), 400
+
+    quote = Quote.query.filter_by(job_request_id=job.id).order_by(Quote.created_at.desc()).first()
+    total_amount = quote.total_amount if quote else 0.0
+    details = quote.details if quote else data.get('details', '')
+
+    try:
+        update_job_stage_values(job, 'completed', {'notes': data.get('notes', '')})
+
+        invoice = Invoice(
+            job_request_id=job.id,
+            client_id=job.client_id,
+            service_provider_id=job.assigned_sp_id,
+            total_amount=total_amount,
+            details=details,
+            status='Unpaid'
+        )
+        db.session.add(invoice)
+
+        update_job_stage_values(job, 'invoiced')
+        db.session.commit()
+
+        record_job_history(job.id, 'Completed', job.assigned_sp_id)
+        record_job_history(job.id, 'Invoiced', job.assigned_sp_id)
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+    emit_job_update(job)
+    return jsonify(serialize_job(job)), 200
 
 
 @app.route('/invoices/client/<int:client_id>', methods=['GET'])
@@ -1179,6 +1435,104 @@ def get_invoices_by_job(job_id):
         }
         for i in invoices
     ]), 200
+
+
+# ============================
+# RATINGS
+# ============================
+
+@app.route('/ratings', methods=['POST'])
+def create_rating():
+    data = request.json or {}
+    rating = Rating(
+        service_provider_id=data["service_provider_id"],
+        job_request_id=data["job_request_id"],
+        score=data["score"],
+        comment=data.get("comment")
+    )
+    db.session.add(rating)
+    db.session.commit()
+    return jsonify({"message": "Rating added", "id": rating.id}), 201
+
+
+@app.route('/ratings/sp/<int:sp_id>', methods=['GET'])
+def get_ratings_for_sp(sp_id):
+    ratings = Rating.query.filter_by(service_provider_id=sp_id).all()
+    return jsonify([
+        {
+            "id": r.id,
+            "score": r.score,
+            "comment": r.comment,
+            "job_id": r.job_request_id,
+            "created_at": r.created_at.isoformat()
+        }
+        for r in ratings
+    ]), 200
+
+
+# ============================
+# PAYMENTS
+# ============================
+
+@app.route('/payments', methods=['POST'])
+def create_payment():
+    data = request.json or {}
+    payment = Payment(
+        service_provider_id=data["service_provider_id"],
+        job_request_id=data["job_request_id"],
+        amount=data["amount"],
+        status=data.get("status", "Pending")
+    )
+    db.session.add(payment)
+    db.session.commit()
+    return jsonify({"message": "Payment recorded", "id": payment.id}), 201
+
+
+@app.route('/payments/sp/<int:sp_id>', methods=['GET'])
+def get_payments_by_sp(sp_id):
+    payments = Payment.query.filter_by(service_provider_id=sp_id).all()
+    return jsonify([
+        {
+            "id": p.id,
+            "job_request_id": p.job_request_id,
+            "amount": p.amount,
+            "status": p.status,
+            "created_at": p.created_at.isoformat()
+        }
+        for p in payments
+    ]), 200
+
+
+# ============================
+# LEGACY FORM SUBMIT PROVIDER
+# ============================
+
+@app.route('/submit_provider', methods=['POST'])
+def submit_provider():
+    name = request.form['name']
+    email = request.form['email']
+    phone = request.form['phone']
+    province = request.form['province']
+    skill = request.form['skill']
+    latitude = float(request.form.get('latitude') or 0)
+    longitude = float(request.form.get('longitude') or 0)
+    password = request.form['password']
+
+    new_provider = ServiceProvider(
+        name=name,
+        email=email,
+        phone=phone,
+        province=province,
+        skill=skill,
+        latitude=latitude,
+        longitude=longitude,
+        password_hash=generate_password_hash(password)
+    )
+
+    db.session.add(new_provider)
+    db.session.commit()
+    flash('Service provider registered successfully!')
+    return redirect(url_for('admin_panel'))
 
 
 # ============================
