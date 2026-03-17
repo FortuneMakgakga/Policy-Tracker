@@ -4,7 +4,6 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Card } from './ui/card';
 import { Plus, Trash2, FileText } from 'lucide-react';
 import { toast } from 'sonner';
@@ -21,10 +20,16 @@ interface QuoteBuilderProps {
   onOpenChange: (open: boolean) => void;
   serviceType: string;
   jobId: string;
-  onQuoteCreated: (quote: any) => void;
+  onQuoteCreated: (job: any) => void;
 }
 
-export function QuoteBuilder({ open, onOpenChange, serviceType, jobId, onQuoteCreated }: QuoteBuilderProps) {
+export function QuoteBuilder({
+  open,
+  onOpenChange,
+  serviceType,
+  jobId,
+  onQuoteCreated
+}: QuoteBuilderProps) {
   const [callOutFee, setCallOutFee] = useState(350);
   const [laborHours, setLaborHours] = useState(2);
   const [hourlyRate, setHourlyRate] = useState(450);
@@ -35,6 +40,7 @@ export function QuoteBuilder({ open, onOpenChange, serviceType, jobId, onQuoteCr
   ]);
   const [notes, setNotes] = useState('');
   const [showPreview, setShowPreview] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const addPart = () => {
     setParts([...parts, { name: '', qty: 1, unit_price: 0, total: 0 }]);
@@ -44,14 +50,14 @@ export function QuoteBuilder({ open, onOpenChange, serviceType, jobId, onQuoteCr
     setParts(parts.filter((_, i) => i !== index));
   };
 
-  const updatePart = (index: number, field: keyof Part, value: any) => {
+  const updatePart = (index: number, field: keyof Part, value: string | number) => {
     const newParts = [...parts];
     newParts[index] = { ...newParts[index], [field]: value };
-    
+
     if (field === 'qty' || field === 'unit_price') {
-      newParts[index].total = newParts[index].qty * newParts[index].unit_price;
+      newParts[index].total = Number(newParts[index].qty) * Number(newParts[index].unit_price);
     }
-    
+
     setParts(newParts);
   };
 
@@ -65,31 +71,76 @@ export function QuoteBuilder({ open, onOpenChange, serviceType, jobId, onQuoteCr
     return { subtotal, vatAmount, total, laborTotal, partsTotal };
   };
 
-  const handleSaveQuote = () => {
+  const buildDetailsString = () => {
     const totals = calculateTotals();
-    
-    const quote = {
-      job_id: jobId,
-      call_out_fee: callOutFee,
-      labor_hours: laborHours,
-      hourly_rate: hourlyRate,
-      parts: parts.filter(p => p.name && p.total > 0),
-      diagnostic_fee: diagnosticFee,
-      compliance_test_fee: complianceTestFee,
-      subtotal: totals.subtotal,
-      vat_rate: 0.15,
-      vat_amount: totals.vatAmount,
-      total: totals.total,
-      notes,
-      valid_until: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      created_at: new Date().toISOString(),
-    };
+    const validParts = parts.filter(p => p.name && p.total > 0);
 
-    // Mock save
-    console.log('Saving quote:', quote);
-    toast.success('Quote created successfully');
-    onQuoteCreated(quote);
-    onOpenChange(false);
+    const lines: string[] = [
+      `Service Type: ${serviceType}`,
+      `Call-out Fee: R ${callOutFee.toFixed(2)}`,
+      `Labour: ${laborHours} hour(s) @ R ${hourlyRate.toFixed(2)} = R ${totals.laborTotal.toFixed(2)}`
+    ];
+
+    if (diagnosticFee > 0) {
+      lines.push(`Diagnostic Fee: R ${diagnosticFee.toFixed(2)}`);
+    }
+
+    if (complianceTestFee > 0) {
+      lines.push(`Compliance Test Fee: R ${complianceTestFee.toFixed(2)}`);
+    }
+
+    if (validParts.length > 0) {
+      lines.push('Parts & Materials:');
+      validParts.forEach((part, index) => {
+        lines.push(
+          `${index + 1}. ${part.name} | Qty: ${part.qty} | Unit: R ${part.unit_price.toFixed(2)} | Total: R ${part.total.toFixed(2)}`
+        );
+      });
+    }
+
+    lines.push(`Subtotal: R ${totals.subtotal.toFixed(2)}`);
+    lines.push(`VAT (15%): R ${totals.vatAmount.toFixed(2)}`);
+    lines.push(`Total: R ${totals.total.toFixed(2)}`);
+
+    if (notes.trim()) {
+      lines.push(`Notes: ${notes.trim()}`);
+    }
+
+    return lines.join('\n');
+  };
+
+  const handleSaveQuote = async () => {
+    const totals = calculateTotals();
+
+    try {
+      setSaving(true);
+
+      const res = await fetch(`http://localhost:8000/api/jobs/${jobId}/quote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          total_amount: totals.total,
+          details: buildDetailsString()
+        })
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || 'Failed to create quote');
+      }
+
+      const updatedJob = await res.json();
+
+      toast.success('Quote created successfully');
+      onQuoteCreated(updatedJob);
+      onOpenChange(false);
+      setShowPreview(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to create quote');
+      console.error(error);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const totals = calculateTotals();
@@ -112,7 +163,9 @@ export function QuoteBuilder({ open, onOpenChange, serviceType, jobId, onQuoteCr
               <h2 className="text-xl mb-4">QUOTATION</h2>
               <p className="text-gray-600">Job ID: {jobId}</p>
               <p className="text-gray-600">Date: {new Date().toLocaleDateString('en-ZA')}</p>
-              <p className="text-gray-600">Valid Until: {new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-ZA')}</p>
+              <p className="text-gray-600">
+                Valid Until: {new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-ZA')}
+              </p>
             </div>
 
             <table className="w-full mb-6">
@@ -137,6 +190,7 @@ export function QuoteBuilder({ open, onOpenChange, serviceType, jobId, onQuoteCr
                   <td className="text-right">R {hourlyRate.toFixed(2)}</td>
                   <td className="text-right">R {totals.laborTotal.toFixed(2)}</td>
                 </tr>
+
                 {diagnosticFee > 0 && (
                   <tr className="border-b border-gray-200">
                     <td className="py-2">Diagnostic Fee</td>
@@ -145,6 +199,7 @@ export function QuoteBuilder({ open, onOpenChange, serviceType, jobId, onQuoteCr
                     <td className="text-right">R {diagnosticFee.toFixed(2)}</td>
                   </tr>
                 )}
+
                 {complianceTestFee > 0 && (
                   <tr className="border-b border-gray-200">
                     <td className="py-2">Compliance Test</td>
@@ -153,6 +208,7 @@ export function QuoteBuilder({ open, onOpenChange, serviceType, jobId, onQuoteCr
                     <td className="text-right">R {complianceTestFee.toFixed(2)}</td>
                   </tr>
                 )}
+
                 {parts.filter(p => p.name && p.total > 0).map((part, index) => (
                   <tr key={index} className="border-b border-gray-200">
                     <td className="py-2">{part.name}</td>
@@ -172,12 +228,8 @@ export function QuoteBuilder({ open, onOpenChange, serviceType, jobId, onQuoteCr
                   <td className="text-right">R {totals.vatAmount.toFixed(2)}</td>
                 </tr>
                 <tr className="border-t border-gray-300">
-                  <td colSpan={3} className="py-2 text-right">
-                    <strong>Total:</strong>
-                  </td>
-                  <td className="text-right">
-                    <strong>R {totals.total.toFixed(2)}</strong>
-                  </td>
+                  <td colSpan={3} className="py-2 text-right"><strong>Total:</strong></td>
+                  <td className="text-right"><strong>R {totals.total.toFixed(2)}</strong></td>
                 </tr>
               </tfoot>
             </table>
@@ -194,8 +246,8 @@ export function QuoteBuilder({ open, onOpenChange, serviceType, jobId, onQuoteCr
             <Button variant="outline" onClick={() => setShowPreview(false)}>
               Back to Edit
             </Button>
-            <Button onClick={handleSaveQuote}>
-              Save Quote
+            <Button onClick={handleSaveQuote} disabled={saving}>
+              {saving ? 'Saving...' : 'Save Quote'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -214,7 +266,6 @@ export function QuoteBuilder({ open, onOpenChange, serviceType, jobId, onQuoteCr
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* Call-out Fee */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label className="text-gray-300">Call-out Fee (R)</Label>
@@ -237,7 +288,6 @@ export function QuoteBuilder({ open, onOpenChange, serviceType, jobId, onQuoteCr
             </div>
           </div>
 
-          {/* Labor Hours */}
           <div>
             <Label className="text-gray-300">Labor Hours</Label>
             <Input
@@ -252,7 +302,6 @@ export function QuoteBuilder({ open, onOpenChange, serviceType, jobId, onQuoteCr
             </p>
           </div>
 
-          {/* Electrical-specific fees */}
           {serviceType === 'Electrical' && (
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -277,7 +326,6 @@ export function QuoteBuilder({ open, onOpenChange, serviceType, jobId, onQuoteCr
             </div>
           )}
 
-          {/* Parts */}
           <div>
             <div className="flex items-center justify-between mb-3">
               <Label className="text-gray-300">Parts & Materials</Label>
@@ -336,7 +384,6 @@ export function QuoteBuilder({ open, onOpenChange, serviceType, jobId, onQuoteCr
             </div>
           </div>
 
-          {/* Notes */}
           <div>
             <Label className="text-gray-300">Notes</Label>
             <Textarea
@@ -348,7 +395,6 @@ export function QuoteBuilder({ open, onOpenChange, serviceType, jobId, onQuoteCr
             />
           </div>
 
-          {/* Totals */}
           <Card className="bg-gray-800 border-gray-700 p-4">
             <div className="space-y-2">
               <div className="flex justify-between text-gray-300">
@@ -372,8 +418,8 @@ export function QuoteBuilder({ open, onOpenChange, serviceType, jobId, onQuoteCr
             <FileText className="w-4 h-4 mr-2" />
             Preview PDF
           </Button>
-          <Button onClick={handleSaveQuote}>
-            Save Quote
+          <Button onClick={handleSaveQuote} disabled={saving}>
+            {saving ? 'Saving...' : 'Save Quote'}
           </Button>
         </DialogFooter>
       </DialogContent>

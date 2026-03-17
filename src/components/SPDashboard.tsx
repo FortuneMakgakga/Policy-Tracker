@@ -1,12 +1,51 @@
-import { useState, useEffect } from 'react';
-import { Card } from './ui/card';
-import { Badge } from './ui/badge';
-import { Button } from './ui/button';
-import { MapView } from './MapView';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
-import { ScrollArea } from './ui/scroll-area';
-import { Clock, MapPin, Phone, Navigation, Pause, Play, X } from 'lucide-react';
-import { toast } from 'sonner';
+import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { Card } from "./ui/card";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import { MapView } from "./MapView";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "./ui/dialog";
+import { ScrollArea } from "./ui/scroll-area";
+import { Clock, MapPin, Phone, Navigation, X } from "lucide-react";
+import { toast } from "sonner";
+import { io, Socket } from "socket.io-client";
+
+const API_BASE =
+  "https://opulent-happiness-7xvg5xp75vq3p95r-5000.app.github.dev";
+
+interface BackendJob {
+  id?: string;
+  job_id?: number;
+  client_name?: string;
+  clientName?: string;
+  client_phone?: string;
+  service_type?: string;
+  skill_required?: string;
+  skill?: string;
+  description?: string;
+  job_description?: string;
+  jobDesc?: string;
+  address?: string;
+  client_address?: string;
+  province?: string;
+  lat?: number | null;
+  lng?: number | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  appointment_time?: string | null;
+  appointment?: string | null;
+  stage?: string;
+  priority?: string;
+  status?: string;
+  assigned_sp_id?: number | null;
+}
 
 interface Job {
   id: string;
@@ -21,36 +60,40 @@ interface Job {
   appointment_time: string;
   stage?: string;
   priority?: string;
+  status?: string;
+  assigned_sp_id?: number | null;
 }
 
 interface JobContextCardProps {
   job: Job;
   onAccept: () => void;
   onDecline: () => void;
-  onStartRoute: () => void;
-  onPause: () => void;
-  onResume: () => void;
+  onOpenJob: () => void;
 }
 
-function JobContextCard({ job, onAccept, onDecline, onStartRoute, onPause, onResume }: JobContextCardProps) {
-  const isActive = job.stage && ['accepted', 'en_route', 'arrived', 'in_progress'].includes(job.stage);
-  const canAccept = !job.stage || job.stage === 'assigned';
-  const canStartRoute = job.stage === 'accepted';
-  const canPause = job.stage === 'in_progress';
-  const isPaused = job.stage === 'paused';
+function JobContextCard({
+  job,
+  onAccept,
+  onDecline,
+  onOpenJob,
+}: JobContextCardProps) {
+  const canAccept = !job.stage || job.stage === "new" || job.stage === "assigned";
+  const isActive =
+    !!job.stage &&
+    ["accepted", "arrived", "in_progress", "paused", "quoted", "approved"].includes(
+      job.stage
+    );
 
   return (
     <Card className="bg-gray-900 border-gray-800 p-6">
       <div className="flex items-start justify-between mb-4">
         <div>
           <h3 className="text-white text-xl mb-1">{job.client_name}</h3>
-          <Badge variant={job.priority === 'high' ? 'destructive' : 'secondary'}>
+          <Badge variant={job.priority === "high" ? "destructive" : "secondary"}>
             {job.service_type}
           </Badge>
         </div>
-        {job.stage && (
-          <Badge>{job.stage.replace('_', ' ').toUpperCase()}</Badge>
-        )}
+        {job.stage && <Badge>{job.stage.replace("_", " ").toUpperCase()}</Badge>}
       </div>
 
       <div className="space-y-3 mb-4">
@@ -58,28 +101,30 @@ function JobContextCard({ job, onAccept, onDecline, onStartRoute, onPause, onRes
 
         <div className="flex items-center gap-2 text-gray-400">
           <MapPin className="w-4 h-4" />
-          <span className="text-sm">{job.address}</span>
+          <span className="text-sm">{job.address || "No address provided"}</span>
         </div>
 
         <div className="flex items-center gap-2 text-gray-400">
           <Phone className="w-4 h-4" />
-          <span className="text-sm">{job.client_phone}</span>
+          <span className="text-sm">{job.client_phone || "No phone"}</span>
         </div>
 
         <div className="flex items-center gap-2 text-gray-400">
           <Clock className="w-4 h-4" />
           <span className="text-sm">
-            {new Date(job.appointment_time).toLocaleString('en-ZA', {
-              month: 'short',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
+            {job.appointment_time
+              ? new Date(job.appointment_time).toLocaleString("en-ZA", {
+                  month: "short",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "No appointment"}
           </span>
         </div>
 
         <div className="text-gray-400 text-sm">
-          Distance: <span className="text-white">{job.distance_km} km</span>
+          Distance: <span className="text-white">{job.distance_km.toFixed(1)} km</span>
         </div>
       </div>
 
@@ -95,24 +140,10 @@ function JobContextCard({ job, onAccept, onDecline, onStartRoute, onPause, onRes
           </>
         )}
 
-        {canStartRoute && (
-          <Button onClick={onStartRoute} className="flex-1">
+        {isActive && (
+          <Button onClick={onOpenJob} className="flex-1">
             <Navigation className="w-4 h-4 mr-2" />
-            Start Route
-          </Button>
-        )}
-
-        {canPause && (
-          <Button onClick={onPause} variant="outline" className="flex-1">
-            <Pause className="w-4 h-4 mr-2" />
-            Pause Job
-          </Button>
-        )}
-
-        {isPaused && (
-          <Button onClick={onResume} className="flex-1">
-            <Play className="w-4 h-4 mr-2" />
-            Resume Job
+            Open Job
           </Button>
         )}
       </div>
@@ -120,98 +151,348 @@ function JobContextCard({ job, onAccept, onDecline, onStartRoute, onPause, onRes
   );
 }
 
+function calculateDistanceKm(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+
+  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
+
+function mapBackendJobToUi(job: BackendJob, spLat?: number, spLng?: number): Job {
+  const rawLat = job.lat ?? job.latitude ?? 0;
+  const rawLng = job.lng ?? job.longitude ?? 0;
+  const lat = Number(rawLat || 0);
+  const lng = Number(rawLng || 0);
+
+  const distance_km =
+    spLat != null && spLng != null && lat && lng
+      ? calculateDistanceKm(spLat, spLng, lat, lng)
+      : 0;
+
+  return {
+    id: String(job.id ?? job.job_id ?? ""),
+    client_name: job.client_name || job.clientName || "Unknown Client",
+    client_phone: job.client_phone || "",
+    service_type: job.service_type || job.skill_required || job.skill || "General",
+    description: job.description || job.job_description || job.jobDesc || "",
+    address: job.address || job.client_address || job.province || "Location unavailable",
+    lat,
+    lng,
+    distance_km,
+    appointment_time:
+      job.appointment_time || job.appointment || new Date().toISOString(),
+    stage: job.stage,
+    priority: job.priority || "normal",
+    status: job.status,
+    assigned_sp_id: job.assigned_sp_id ?? null,
+  };
+}
+
+function upsertJob(list: Job[], updated: Job) {
+  const exists = list.some((job) => job.id === updated.id);
+  if (exists) {
+    return list.map((job) => (job.id === updated.id ? updated : job));
+  }
+  return [updated, ...list];
+}
+
 export function SPDashboard() {
+  const navigate = useNavigate();
+
   const [incomingJobs, setIncomingJobs] = useState<Job[]>([]);
   const [activeJobs, setActiveJobs] = useState<Job[]>([]);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [notificationJob, setNotificationJob] = useState<Job | null>(null);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const spId = localStorage.getItem("spId");
+
+  const spLat = useMemo(() => {
+    const v = localStorage.getItem("spLat");
+    return v ? Number(v) : undefined;
+  }, []);
+
+  const spLng = useMemo(() => {
+    const v = localStorage.getItem("spLng");
+    return v ? Number(v) : undefined;
+  }, []);
+
+  const splitJobs = (jobs: Job[]) => {
+    const incoming = jobs.filter(
+      (job) =>
+        !job.stage ||
+        job.stage === "new" ||
+        job.stage === "assigned"
+    );
+
+    const active = jobs.filter((job) =>
+      !!job.stage &&
+      [
+        "accepted",
+        "arrived",
+        "in_progress",
+        "paused",
+        "quoted",
+        "approved",
+      ].includes(job.stage)
+    );
+
+    return { incoming, active };
+  };
 
   useEffect(() => {
-    // Initial load
-    Promise.all([
-      fetch('/fixtures/incoming_jobs.json').then(r => r.json()),
-      fetch('/fixtures/sp_active_jobs.json').then(r => r.json()),
-    ]).then(([incoming, active]) => {
-      setIncomingJobs(incoming);
-      setActiveJobs(active);
+    let socket: Socket | null = null;
+
+    const loadJobs = async () => {
+      try {
+        setLoading(true);
+
+        const [openRes, spJobsRes] = await Promise.all([
+          fetch(`${API_BASE}/api/jobs/open`, {
+            method: "GET",
+            credentials: "include",
+          }),
+          fetch(`${API_BASE}/api/sp/jobs`, {
+            method: "GET",
+            credentials: "include",
+          }),
+        ]);
+
+        const openData = await openRes.json();
+        const spJobsData = await spJobsRes.json();
+
+        if (!openRes.ok) {
+          toast.error(openData.error || "Failed to load open jobs");
+          return;
+        }
+
+        if (!spJobsRes.ok) {
+          toast.error(spJobsData.error || "Failed to load assigned jobs");
+          return;
+        }
+
+        const allMapped = [
+          ...(openData as BackendJob[]).map((job) => mapBackendJobToUi(job, spLat, spLng)),
+          ...(spJobsData as BackendJob[]).map((job) => mapBackendJobToUi(job, spLat, spLng)),
+        ];
+
+        const deduped = Array.from(
+          new Map(allMapped.map((job) => [job.id, job])).values()
+        );
+
+        const { incoming, active } = splitJobs(deduped);
+        setIncomingJobs(incoming);
+        setActiveJobs(active);
+      } catch (error) {
+        toast.error("Could not connect to server");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadJobs();
+
+    socket = io(API_BASE, {
+      withCredentials: true,
+      transports: ["websocket", "polling"],
     });
 
-    // Poll for new jobs every 10 seconds
-    const interval = setInterval(() => {
-      fetch('/fixtures/incoming_jobs.json')
-        .then(r => r.json())
-        .then(incoming => {
-          // Check for new jobs
-          const newJob = incoming.find((job: Job) => 
-            !incomingJobs.some(existing => existing.id === job.id)
-          );
+    socket.on("connect", () => {
+      if (spId) {
+        socket?.emit("join_room", { sp_id: spId });
+      }
+    });
 
-          if (newJob) {
-            toast.info(`New ${newJob.service_type} job available`);
-            setNotificationJob(newJob);
-            setShowNotificationModal(true);
-          }
+    socket.on("receive_notification", (job: BackendJob) => {
+      const mapped = mapBackendJobToUi(job, spLat, spLng);
 
-          setIncomingJobs(incoming);
-        });
+      setIncomingJobs((prev) => {
+        const next = upsertJob(prev, mapped);
+        return next;
+      });
 
-      fetch('/fixtures/sp_active_jobs.json')
-        .then(r => r.json())
-        .then(setActiveJobs);
-    }, 10000);
+      toast.info(`New ${mapped.service_type} job available`);
+      setNotificationJob(mapped);
+      setShowNotificationModal(true);
+    });
 
-    return () => clearInterval(interval);
-  }, [incomingJobs]);
+    socket.on("job_assigned", (job: BackendJob) => {
+      const mapped = mapBackendJobToUi(job, spLat, spLng);
 
-  const handleAcceptJob = (job: Job) => {
-    toast.success(`Job ${job.id} accepted`);
-    setIncomingJobs(prev => prev.filter(j => j.id !== job.id));
-    setActiveJobs(prev => [...prev, { ...job, stage: 'accepted' }]);
-    setShowNotificationModal(false);
-    setNotificationJob(null);
+      setIncomingJobs((prev) => upsertJob(prev, mapped));
+      toast.success(`New assigned ${mapped.service_type} job`);
+    });
+
+    socket.on("job_updated", (job: BackendJob) => {
+      const mapped = mapBackendJobToUi(job, spLat, spLng);
+      const stage = mapped.stage || "";
+
+      if (stage === "completed" || stage === "invoiced" || mapped.status === "Completed") {
+        setIncomingJobs((prev) => prev.filter((j) => j.id !== mapped.id));
+        setActiveJobs((prev) => prev.filter((j) => j.id !== mapped.id));
+        setSelectedJob((prev) => (prev?.id === mapped.id ? null : prev));
+        return;
+      }
+
+      const { incoming, active } = splitJobs([
+        ...incomingJobs.filter((j) => j.id !== mapped.id),
+        ...activeJobs.filter((j) => j.id !== mapped.id),
+        mapped,
+      ]);
+
+      setIncomingJobs(incoming);
+      setActiveJobs(active);
+      setSelectedJob((prev) => (prev?.id === mapped.id ? mapped : prev));
+    });
+
+    socket.on("job_taken", ({ job_id }: { job_id: number }) => {
+      const id = String(job_id);
+      setIncomingJobs((prev) => prev.filter((job) => job.id !== id));
+      setSelectedJob((prev) => (prev?.id === id ? null : prev));
+    });
+
+    socket.on("job_declined", ({ job_id }: { job_id: number }) => {
+      const id = String(job_id);
+      setIncomingJobs((prev) => prev.filter((job) => job.id !== id));
+      setSelectedJob((prev) => (prev?.id === id ? null : prev));
+    });
+
+    socket.on("job_cancelled", ({ job_id }: { job_id: number }) => {
+      const id = String(job_id);
+      setIncomingJobs((prev) => prev.filter((job) => job.id !== id));
+      setActiveJobs((prev) => prev.filter((job) => job.id !== id));
+      setSelectedJob((prev) => (prev?.id === id ? null : prev));
+      toast.info(`Job ${job_id} was cancelled`);
+    });
+
+    return () => {
+      socket?.disconnect();
+    };
+  }, [spId, spLat, spLng]);
+
+  const handleAcceptJob = async (job: Job) => {
+    if (!spId) {
+      toast.error("Missing service provider ID");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/api/jobs/${job.id}/accept`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          sp_id: Number(spId),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.error || "Failed to accept job");
+        return;
+      }
+
+      const updatedJob = data.job
+        ? mapBackendJobToUi(data.job, spLat, spLng)
+        : { ...job, stage: "accepted", status: "Active" };
+
+      setIncomingJobs((prev) => prev.filter((j) => j.id !== job.id));
+      setActiveJobs((prev) => upsertJob(prev, updatedJob));
+      setSelectedJob((prev) => (prev?.id === job.id ? updatedJob : prev));
+      setShowNotificationModal(false);
+      setNotificationJob(null);
+
+      toast.success(`Job ${job.id} accepted`);
+      navigate(`/sp/jobs/${job.id}`);
+    } catch (error) {
+      toast.error("Could not connect to server");
+    }
   };
 
-  const handleDeclineJob = (job: Job) => {
-    toast.info(`Job ${job.id} declined`);
-    setIncomingJobs(prev => prev.filter(j => j.id !== job.id));
-    setShowNotificationModal(false);
-    setNotificationJob(null);
+  const handleDeclineJob = async (job: Job) => {
+    if (!spId) {
+      toast.error("Missing service provider ID");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/decline_job`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          job_id: Number(job.id),
+          sp_id: Number(spId),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.status || data.error || "Failed to decline job");
+        return;
+      }
+
+      toast.info(`Job ${job.id} declined`);
+      setIncomingJobs((prev) => prev.filter((j) => j.id !== job.id));
+      setSelectedJob((prev) => (prev?.id === job.id ? null : prev));
+      setShowNotificationModal(false);
+      setNotificationJob(null);
+    } catch (error) {
+      toast.error("Could not connect to server");
+    }
   };
 
-  const handleStartRoute = (job: Job) => {
-    toast.success('Route started');
-    setActiveJobs(prev => 
-      prev.map(j => j.id === job.id ? { ...j, stage: 'en_route' } : j)
-    );
+  const handleOpenJob = (job: Job) => {
+    navigate(`/sp/jobs/${job.id}`);
   };
 
-  const handlePause = (job: Job) => {
-    toast.info('Job paused');
-    setActiveJobs(prev => 
-      prev.map(j => j.id === job.id ? { ...j, stage: 'paused' } : j)
-    );
-  };
+  const combinedJobs = [...incomingJobs, ...activeJobs];
+  const uniqueCombinedJobs = Array.from(
+    new Map(combinedJobs.map((job) => [job.id, job])).values()
+  );
 
-  const handleResume = (job: Job) => {
-    toast.success('Job resumed');
-    setActiveJobs(prev => 
-      prev.map(j => j.id === job.id ? { ...j, stage: 'in_progress' } : j)
-    );
-  };
+  const mapMarkers = uniqueCombinedJobs
+    .map((job) => ({
+      position: [job.lat, job.lng] as [number, number],
+      label: `${job.client_name} - ${job.service_type}`,
+      type: "job" as const,
+      onClick: () => setSelectedJob(job),
+    }))
+    .filter((m) => m.position[0] && m.position[1]);
 
   return (
     <div className="min-h-screen bg-gray-950 flex">
-      {/* Left Panel - Notifications */}
       <div className="w-96 bg-gray-900 border-r border-gray-800 flex flex-col">
         <div className="p-6 border-b border-gray-800">
           <h2 className="text-white text-xl">Incoming Jobs</h2>
-          <p className="text-gray-400 text-sm mt-1">{incomingJobs.length} available</p>
+          <p className="text-gray-400 text-sm mt-1">
+            {loading ? "Loading..." : `${incomingJobs.length} available`}
+          </p>
         </div>
 
         <ScrollArea className="flex-1">
           <div className="p-4 space-y-4">
-            {incomingJobs.map(job => (
+            {incomingJobs.map((job) => (
               <Card
                 key={job.id}
                 className="bg-gray-800 border-gray-700 p-4 cursor-pointer hover:bg-gray-750 transition-colors"
@@ -219,7 +500,7 @@ export function SPDashboard() {
               >
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="text-white">{job.client_name}</h3>
-                  {job.priority === 'high' && (
+                  {job.priority === "high" && (
                     <Badge variant="destructive">Urgent</Badge>
                   )}
                 </div>
@@ -233,18 +514,20 @@ export function SPDashboard() {
                 </p>
 
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-400">{job.distance_km} km away</span>
                   <span className="text-gray-400">
-                    {new Date(job.appointment_time).toLocaleTimeString('en-ZA', {
-                      hour: '2-digit',
-                      minute: '2-digit',
+                    {job.distance_km.toFixed(1)} km away
+                  </span>
+                  <span className="text-gray-400">
+                    {new Date(job.appointment_time).toLocaleTimeString("en-ZA", {
+                      hour: "2-digit",
+                      minute: "2-digit",
                     })}
                   </span>
                 </div>
               </Card>
             ))}
 
-            {incomingJobs.length === 0 && (
+            {!loading && incomingJobs.length === 0 && (
               <div className="text-center text-gray-500 py-12">
                 No incoming jobs
               </div>
@@ -253,20 +536,13 @@ export function SPDashboard() {
         </ScrollArea>
       </div>
 
-      {/* Right Panel - Map */}
       <div className="flex-1 relative">
         <MapView
           center={[-26.1234, 28.0456]}
           zoom={12}
-          markers={activeJobs.map(job => ({
-            position: [job.lat, job.lng],
-            label: `${job.client_name} - ${job.service_type}`,
-            type: 'job' as const,
-            onClick: () => setSelectedJob(job),
-          }))}
+          markers={mapMarkers}
         />
 
-        {/* Job Context Card Overlay */}
         {selectedJob && (
           <div className="absolute top-6 left-6 right-6 max-w-md">
             <div className="relative">
@@ -278,19 +554,17 @@ export function SPDashboard() {
               >
                 <X className="w-4 h-4" />
               </Button>
+
               <JobContextCard
                 job={selectedJob}
                 onAccept={() => handleAcceptJob(selectedJob)}
                 onDecline={() => handleDeclineJob(selectedJob)}
-                onStartRoute={() => handleStartRoute(selectedJob)}
-                onPause={() => handlePause(selectedJob)}
-                onResume={() => handleResume(selectedJob)}
+                onOpenJob={() => handleOpenJob(selectedJob)}
               />
             </div>
           </div>
         )}
 
-        {/* Active Jobs Counter */}
         <div className="absolute bottom-6 left-6">
           <Card className="bg-gray-900 border-gray-800 p-4">
             <p className="text-gray-400 text-sm">Active Jobs</p>
@@ -299,7 +573,6 @@ export function SPDashboard() {
         </div>
       </div>
 
-      {/* Notification Modal */}
       <Dialog open={showNotificationModal} onOpenChange={setShowNotificationModal}>
         <DialogContent className="bg-gray-900 border-gray-800">
           <DialogHeader>
@@ -334,15 +607,20 @@ export function SPDashboard() {
               <div className="flex justify-between">
                 <div>
                   <p className="text-gray-400 text-sm">Distance</p>
-                  <p className="text-white">{notificationJob.distance_km} km</p>
+                  <p className="text-white">
+                    {notificationJob.distance_km.toFixed(1)} km
+                  </p>
                 </div>
                 <div className="text-right">
                   <p className="text-gray-400 text-sm">Time</p>
                   <p className="text-white">
-                    {new Date(notificationJob.appointment_time).toLocaleTimeString('en-ZA', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
+                    {new Date(notificationJob.appointment_time).toLocaleTimeString(
+                      "en-ZA",
+                      {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      }
+                    )}
                   </p>
                 </div>
               </div>
@@ -352,11 +630,17 @@ export function SPDashboard() {
           <DialogFooter className="gap-2 sm:gap-0">
             <Button
               variant="outline"
-              onClick={() => notificationJob && handleDeclineJob(notificationJob)}
+              onClick={() =>
+                notificationJob && handleDeclineJob(notificationJob)
+              }
             >
               Decline
             </Button>
-            <Button onClick={() => notificationJob && handleAcceptJob(notificationJob)}>
+            <Button
+              onClick={() =>
+                notificationJob && handleAcceptJob(notificationJob)
+              }
+            >
               Accept Job
             </Button>
           </DialogFooter>
