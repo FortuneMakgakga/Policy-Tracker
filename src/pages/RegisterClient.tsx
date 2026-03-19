@@ -6,6 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link, useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 
+const API_BASE =
+  "https://opulent-happiness-7xvg5xp75vq3p95r-5000.app.github.dev";
+
 export default function RegisterClient() {
   const navigate = useNavigate();
 
@@ -16,6 +19,7 @@ export default function RegisterClient() {
     password: "",
     confirmPassword: "",
     address: "",
+    province: "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -36,6 +40,7 @@ export default function RegisterClient() {
       !form.email ||
       !form.phone ||
       !form.address ||
+      !form.province ||
       !form.password ||
       !form.confirmPassword
     ) {
@@ -51,7 +56,7 @@ export default function RegisterClient() {
     setLoading(true);
 
     try {
-      const response = await fetch("https://opulent-happiness-7xvg5xp75vq3p95r-5000.app.github.dev/api/client/register", {
+      const response = await fetch(`${API_BASE}/api/client/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -59,10 +64,12 @@ export default function RegisterClient() {
         credentials: "include",
         body: JSON.stringify({
           name: form.name,
+          client_name: form.name, // backend safety
           email: form.email,
           phone: form.phone,
           password: form.password,
           address: form.address,
+          province: form.province,
         }),
       });
 
@@ -72,6 +79,14 @@ export default function RegisterClient() {
         setError(data.error || "Registration failed.");
         return;
       }
+
+      // ✅ Store client info for later use
+      if (data.client_id) {
+        localStorage.setItem("clientId", data.client_id.toString());
+      }
+
+      localStorage.setItem("clientName", form.name);
+      localStorage.setItem("clientPhone", form.phone);
 
       setSuccess("Account created successfully.");
 
@@ -149,6 +164,18 @@ export default function RegisterClient() {
             </div>
 
             <div>
+              <Label className="text-gray-300">Province</Label>
+              <Input
+                name="province"
+                value={form.province}
+                onChange={handleChange}
+                placeholder="e.g. Gauteng"
+                className="bg-gray-800 border-gray-700 text-white"
+                required
+              />
+            </div>
+
+            <div>
               <Label className="text-gray-300">Password</Label>
               <Input
                 type="password"
@@ -172,19 +199,10 @@ export default function RegisterClient() {
               />
             </div>
 
-            {error && (
-              <p className="text-red-400 text-sm">{error}</p>
-            )}
+            {error && <p className="text-red-400 text-sm">{error}</p>}
+            {success && <p className="text-green-400 text-sm">{success}</p>}
 
-            {success && (
-              <p className="text-green-400 text-sm">{success}</p>
-            )}
-
-            <Button
-              type="submit"
-              className="w-full mt-4"
-              disabled={loading}
-            >
+            <Button type="submit" className="w-full mt-4" disabled={loading}>
               {loading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (

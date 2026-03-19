@@ -1,5 +1,12 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -7,6 +14,8 @@ import { Textarea } from './ui/textarea';
 import { Card } from './ui/card';
 import { Plus, Trash2, FileText } from 'lucide-react';
 import { toast } from 'sonner';
+
+const API_BASE = 'https://opulent-happiness-7xvg5xp75vq3p95r-5000.app.github.dev';
 
 interface Part {
   name: string;
@@ -73,7 +82,7 @@ export function QuoteBuilder({
 
   const buildDetailsString = () => {
     const totals = calculateTotals();
-    const validParts = parts.filter(p => p.name && p.total > 0);
+    const validParts = parts.filter((p) => p.name && p.total > 0);
 
     const lines: string[] = [
       `Service Type: ${serviceType}`,
@@ -93,7 +102,9 @@ export function QuoteBuilder({
       lines.push('Parts & Materials:');
       validParts.forEach((part, index) => {
         lines.push(
-          `${index + 1}. ${part.name} | Qty: ${part.qty} | Unit: R ${part.unit_price.toFixed(2)} | Total: R ${part.total.toFixed(2)}`
+          `${index + 1}. ${part.name} | Qty: ${part.qty} | Unit: R ${part.unit_price.toFixed(
+            2
+          )} | Total: R ${part.total.toFixed(2)}`
         );
       });
     }
@@ -115,9 +126,10 @@ export function QuoteBuilder({
     try {
       setSaving(true);
 
-      const res = await fetch(`http://localhost:8000/api/jobs/${jobId}/quote`, {
+      const res = await fetch(`${API_BASE}/api/jobs/${jobId}/quote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           total_amount: totals.total,
           details: buildDetailsString()
@@ -125,8 +137,15 @@ export function QuoteBuilder({
       });
 
       if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || 'Failed to create quote');
+        let message = 'Failed to create quote';
+        try {
+          const data = await res.json();
+          message = data.error || message;
+        } catch {
+          const text = await res.text();
+          if (text) message = text;
+        }
+        throw new Error(message);
       }
 
       const updatedJob = await res.json();
@@ -136,8 +155,8 @@ export function QuoteBuilder({
       onOpenChange(false);
       setShowPreview(false);
     } catch (error) {
+      console.error('Quote creation error:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to create quote');
-      console.error(error);
     } finally {
       setSaving(false);
     }
@@ -147,7 +166,15 @@ export function QuoteBuilder({
 
   if (showPreview) {
     return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog
+        open={open}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            setShowPreview(false);
+            onOpenChange(false);
+          }
+        }}
+      >
         <DialogContent className="bg-gray-900 border-gray-800 max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-white">Quote Preview</DialogTitle>
@@ -209,14 +236,16 @@ export function QuoteBuilder({
                   </tr>
                 )}
 
-                {parts.filter(p => p.name && p.total > 0).map((part, index) => (
-                  <tr key={index} className="border-b border-gray-200">
-                    <td className="py-2">{part.name}</td>
-                    <td className="text-right">{part.qty}</td>
-                    <td className="text-right">R {part.unit_price.toFixed(2)}</td>
-                    <td className="text-right">R {part.total.toFixed(2)}</td>
-                  </tr>
-                ))}
+                {parts
+                  .filter((p) => p.name && p.total > 0)
+                  .map((part, index) => (
+                    <tr key={index} className="border-b border-gray-200">
+                      <td className="py-2">{part.name}</td>
+                      <td className="text-right">{part.qty}</td>
+                      <td className="text-right">R {part.unit_price.toFixed(2)}</td>
+                      <td className="text-right">R {part.total.toFixed(2)}</td>
+                    </tr>
+                  ))}
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-gray-300">
@@ -256,7 +285,15 @@ export function QuoteBuilder({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) {
+          setShowPreview(false);
+        }
+        onOpenChange(nextOpen);
+      }}
+    >
       <DialogContent className="bg-gray-900 border-gray-800 max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-white">Create Quote - {serviceType}</DialogTitle>
@@ -329,7 +366,7 @@ export function QuoteBuilder({
           <div>
             <div className="flex items-center justify-between mb-3">
               <Label className="text-gray-300">Parts & Materials</Label>
-              <Button size="sm" variant="outline" onClick={addPart}>
+              <Button size="sm" variant="outline" type="button" onClick={addPart}>
                 <Plus className="w-4 h-4 mr-1" />
                 Add Part
               </Button>
@@ -371,6 +408,7 @@ export function QuoteBuilder({
                         <Button
                           size="icon"
                           variant="ghost"
+                          type="button"
                           onClick={() => removePart(index)}
                           className="h-8 w-8"
                         >
@@ -414,11 +452,11 @@ export function QuoteBuilder({
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="outline" onClick={() => setShowPreview(true)}>
+          <Button variant="outline" type="button" onClick={() => setShowPreview(true)}>
             <FileText className="w-4 h-4 mr-2" />
             Preview PDF
           </Button>
-          <Button onClick={handleSaveQuote} disabled={saving}>
+          <Button type="button" onClick={handleSaveQuote} disabled={saving}>
             {saving ? 'Saving...' : 'Save Quote'}
           </Button>
         </DialogFooter>

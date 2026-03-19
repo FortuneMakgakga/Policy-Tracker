@@ -17,8 +17,7 @@ import { Clock, MapPin, Phone, Navigation, X } from "lucide-react";
 import { toast } from "sonner";
 import { io, Socket } from "socket.io-client";
 
-const API_BASE =
-  "https://opulent-happiness-7xvg5xp75vq3p95r-5000.app.github.dev";
+const API_BASE = "https://opulent-happiness-7xvg5xp75vq3p95r-5000.app.github.dev";
 
 interface BackendJob {
   id?: string;
@@ -233,22 +232,15 @@ export function SPDashboard() {
 
   const splitJobs = (jobs: Job[]) => {
     const incoming = jobs.filter(
-      (job) =>
-        !job.stage ||
-        job.stage === "new" ||
-        job.stage === "assigned"
+      (job) => !job.stage || job.stage === "new" || job.stage === "assigned"
     );
 
-    const active = jobs.filter((job) =>
-      !!job.stage &&
-      [
-        "accepted",
-        "arrived",
-        "in_progress",
-        "paused",
-        "quoted",
-        "approved",
-      ].includes(job.stage)
+    const active = jobs.filter(
+      (job) =>
+        !!job.stage &&
+        ["accepted", "arrived", "in_progress", "paused", "quoted", "approved"].includes(
+          job.stage
+        )
     );
 
     return { incoming, active };
@@ -297,7 +289,7 @@ export function SPDashboard() {
         const { incoming, active } = splitJobs(deduped);
         setIncomingJobs(incoming);
         setActiveJobs(active);
-      } catch (error) {
+      } catch {
         toast.error("Could not connect to server");
       } finally {
         setLoading(false);
@@ -308,7 +300,7 @@ export function SPDashboard() {
 
     socket = io(API_BASE, {
       withCredentials: true,
-      transports: ["websocket", "polling"],
+      transports: ["polling"],
     });
 
     socket.on("connect", () => {
@@ -320,11 +312,7 @@ export function SPDashboard() {
     socket.on("receive_notification", (job: BackendJob) => {
       const mapped = mapBackendJobToUi(job, spLat, spLng);
 
-      setIncomingJobs((prev) => {
-        const next = upsertJob(prev, mapped);
-        return next;
-      });
-
+      setIncomingJobs((prev) => upsertJob(prev, mapped));
       toast.info(`New ${mapped.service_type} job available`);
       setNotificationJob(mapped);
       setShowNotificationModal(true);
@@ -332,7 +320,6 @@ export function SPDashboard() {
 
     socket.on("job_assigned", (job: BackendJob) => {
       const mapped = mapBackendJobToUi(job, spLat, spLng);
-
       setIncomingJobs((prev) => upsertJob(prev, mapped));
       toast.success(`New assigned ${mapped.service_type} job`);
     });
@@ -421,7 +408,7 @@ export function SPDashboard() {
 
       toast.success(`Job ${job.id} accepted`);
       navigate(`/sp/jobs/${job.id}`);
-    } catch (error) {
+    } catch {
       toast.error("Could not connect to server");
     }
   };
@@ -457,7 +444,7 @@ export function SPDashboard() {
       setSelectedJob((prev) => (prev?.id === job.id ? null : prev));
       setShowNotificationModal(false);
       setNotificationJob(null);
-    } catch (error) {
+    } catch {
       toast.error("Could not connect to server");
     }
   };
@@ -484,54 +471,108 @@ export function SPDashboard() {
     <div className="min-h-screen bg-gray-950 flex">
       <div className="w-96 bg-gray-900 border-r border-gray-800 flex flex-col">
         <div className="p-6 border-b border-gray-800">
-          <h2 className="text-white text-xl">Incoming Jobs</h2>
+          <h2 className="text-white text-xl">Service Provider Jobs</h2>
           <p className="text-gray-400 text-sm mt-1">
-            {loading ? "Loading..." : `${incomingJobs.length} available`}
+            {loading
+              ? "Loading..."
+              : `${incomingJobs.length} incoming • ${activeJobs.length} active`}
           </p>
         </div>
 
         <ScrollArea className="flex-1">
-          <div className="p-4 space-y-4">
-            {incomingJobs.map((job) => (
-              <Card
-                key={job.id}
-                className="bg-gray-800 border-gray-700 p-4 cursor-pointer hover:bg-gray-750 transition-colors"
-                onClick={() => setSelectedJob(job)}
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <h3 className="text-white">{job.client_name}</h3>
-                  {job.priority === "high" && (
-                    <Badge variant="destructive">Urgent</Badge>
-                  )}
-                </div>
-
-                <Badge variant="secondary" className="mb-2">
-                  {job.service_type}
-                </Badge>
-
-                <p className="text-gray-400 text-sm mb-2 line-clamp-2">
-                  {job.description}
-                </p>
-
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-400">
-                    {job.distance_km.toFixed(1)} km away
-                  </span>
-                  <span className="text-gray-400">
-                    {new Date(job.appointment_time).toLocaleTimeString("en-ZA", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </span>
-                </div>
-              </Card>
-            ))}
-
-            {!loading && incomingJobs.length === 0 && (
-              <div className="text-center text-gray-500 py-12">
-                No incoming jobs
+          <div className="p-4 space-y-6">
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-white text-sm font-medium">Incoming Jobs</h3>
+                <span className="text-gray-400 text-xs">{incomingJobs.length}</span>
               </div>
-            )}
+
+              <div className="space-y-4">
+                {incomingJobs.map((job) => (
+                  <Card
+                    key={job.id}
+                    className="bg-gray-800 border-gray-700 p-4 cursor-pointer hover:bg-gray-750 transition-colors"
+                    onClick={() => setSelectedJob(job)}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <h3 className="text-white">{job.client_name}</h3>
+                      {job.priority === "high" && (
+                        <Badge variant="destructive">Urgent</Badge>
+                      )}
+                    </div>
+
+                    <Badge variant="secondary" className="mb-2">
+                      {job.service_type}
+                    </Badge>
+
+                    <p className="text-gray-400 text-sm mb-2 line-clamp-2">
+                      {job.description}
+                    </p>
+
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-400">
+                        {job.distance_km.toFixed(1)} km away
+                      </span>
+                      <span className="text-gray-400">
+                        {new Date(job.appointment_time).toLocaleTimeString("en-ZA", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+                  </Card>
+                ))}
+
+                {!loading && incomingJobs.length === 0 && (
+                  <div className="text-center text-gray-500 py-6 text-sm">
+                    No incoming jobs
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-white text-sm font-medium">Active Jobs</h3>
+                <span className="text-gray-400 text-xs">{activeJobs.length}</span>
+              </div>
+
+              <div className="space-y-4">
+                {activeJobs.map((job) => (
+                  <Card
+                    key={`active-${job.id}`}
+                    className="bg-gray-800 border-gray-700 p-4 cursor-pointer hover:bg-gray-750 transition-colors"
+                    onClick={() => navigate(`/sp/jobs/${job.id}`)}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <h3 className="text-white">{job.client_name}</h3>
+                      <Badge>{job.stage?.replace("_", " ") || "active"}</Badge>
+                    </div>
+
+                    <Badge variant="secondary" className="mb-2">
+                      {job.service_type}
+                    </Badge>
+
+                    <p className="text-gray-400 text-sm mb-2 line-clamp-2">
+                      {job.description}
+                    </p>
+
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-400">
+                        {job.distance_km.toFixed(1)} km away
+                      </span>
+                      <span className="text-blue-400 text-sm">Open Job</span>
+                    </div>
+                  </Card>
+                ))}
+
+                {!loading && activeJobs.length === 0 && (
+                  <div className="text-center text-gray-500 py-6 text-sm">
+                    No active jobs
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </ScrollArea>
       </div>

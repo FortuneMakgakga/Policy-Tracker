@@ -132,7 +132,8 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    border-color: var(--border);
+    outline-color: var(--ring);
   }
 
   body {
@@ -205,19 +206,19 @@ body {
 
 /* ===== Role-specific palettes (feel like separate apps) ===== */
 [data-theme="client"] {
-  --background: #0b1220;        /* deep navy */
+  --background: #0b1220;
   --foreground: #e6edf3;
-  --primary: #60a5fa;           /* blue */
+  --primary: #60a5fa;
 }
 
 [data-theme="sp"] {
-  --background: #0a0f1a;        /* very dark */
+  --background: #0a0f1a;
   --foreground: #e5e7eb;
-  --primary: #34d399;           /* green */
+  --primary: #34d399;
 }
 
 [data-theme="admin"] {
-  --background: #0f172a;        /* slate navy */
+  --background: #0f172a;
   --foreground: #e2e8f0;
-  --primary: #a78bfa;           /* violet */
+  --primary: #a78bfa;
 }
