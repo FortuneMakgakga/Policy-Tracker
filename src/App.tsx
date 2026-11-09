@@ -1,12 +1,15 @@
-import { useEffect, useMemo, useState, createContext, useContext, type ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet, Link } from 'react-router-dom';
+import { Home } from 'lucide-react';
+import { toast } from 'sonner';
+
+import { RoleProvider, useRole } from '@/auth/RoleProvider';
+import { RoleGate } from '@/auth/RoleGate';
 
 import { ClientDashboard } from '@/components/ClientDashboard';
-import ClientJobRequest from '@/pages/ClientJobRequest';
-
 import { SPDashboard } from '@/components/SPDashboard';
 import { SPJobDetail } from '@/components/SPJobDetail';
 import { AdminView } from '@/components/AdminView';
+import ClientJobRequest from '@/pages/ClientJobRequest';
 
 import Landing from '@/pages/Landing';
 import RegisterClient from '@/pages/RegisterClient';
@@ -16,60 +19,8 @@ import LoginClient from '@/pages/LoginClient';
 import LoginSP from '@/pages/LoginSP';
 import LoginAdmin from '@/pages/LoginAdmin';
 
-import { Home } from 'lucide-react';
 import { Toaster } from '@/components/ui/sonner';
-import { toast } from 'sonner';
 
-/* ---------------- Roles ---------------- */
-type Role = 'client' | 'sp' | 'admin' | null;
-type RoleCtx = { role: Role; setRole: (r: Role) => void; logout: () => void };
-const RoleContext = createContext<RoleCtx | null>(null);
-
-function useRole() {
-  const ctx = useContext(RoleContext);
-  if (!ctx) throw new Error('useRole must be used within RoleProvider');
-  return ctx;
-}
-
-function RoleProvider({ children }: { children: ReactNode }) {
-  const [role, setRoleState] = useState<Role>(() => (localStorage.getItem('role') as Role) || null);
-
-  const setRole = (r: Role) => {
-    setRoleState(r);
-    if (r) localStorage.setItem('role', r);
-    else localStorage.removeItem('role');
-  };
-
-  const logout = () => setRole(null);
-
-  useEffect(() => {
-    document.documentElement.classList.add('dark');
-    document.body.dataset.theme = role ?? 'sp';
-
-    const titles: Record<'client' | 'sp' | 'admin', string> = {
-      client: 'Home Assist — Client',
-      sp: 'Home Assist — Service Provider',
-      admin: 'Home Assist — Admin',
-    };
-
-    document.title = role ? titles[role] : 'Home Assist';
-  }, [role]);
-
-  const value = useMemo(() => ({ role, setRole, logout }), [role]);
-  return <RoleContext.Provider value={value}>{children}</RoleContext.Provider>;
-}
-
-/* --------------- Guard --------------- */
-function RoleGate({ allow, children }: { allow: Role[]; children: ReactNode }) {
-  const { role } = useRole();
-
-  if (!role) return <Navigate to="/" replace />;
-  if (!allow.includes(role)) return <Navigate to={`/${role}`} replace />;
-
-  return children;
-}
-
-/* --------------- Shared brand --------------- */
 function Brand() {
   return (
     <div className="flex items-center gap-3">
@@ -84,7 +35,6 @@ function Brand() {
   );
 }
 
-/* --------------- Role-specific layouts --------------- */
 function ClientLayout() {
   const { logout } = useRole();
 
@@ -112,7 +62,6 @@ function ClientLayout() {
           </nav>
         </div>
       </header>
-
       <main className="max-w-7xl mx-auto px-6 py-6">
         <Outlet />
       </main>
@@ -144,7 +93,6 @@ function SPLayout() {
           </nav>
         </div>
       </header>
-
       <main className="max-w-7xl mx-auto px-6 py-6">
         <Outlet />
       </main>
@@ -173,7 +121,6 @@ function AdminLayout() {
           </nav>
         </div>
       </header>
-
       <main className="max-w-7xl mx-auto px-6 py-6">
         <Outlet />
       </main>
@@ -181,42 +128,20 @@ function AdminLayout() {
   );
 }
 
-/* --------------- Route elements --------------- */
-function ClientHome() {
-  return <ClientDashboard />;
-}
-
-function SPHome() {
-  return <SPDashboard />;
-}
-
-function SPJobPage() {
-  return <SPJobDetail />;
-}
-
-function AdminHome() {
-  return <AdminView />;
-}
-
-/* --------------- App --------------- */
 export default function App() {
   return (
     <RoleProvider>
       <BrowserRouter>
         <Routes>
-          {/* Landing */}
           <Route path="/" element={<Landing />} />
 
-          {/* Login pages */}
           <Route path="/login-client" element={<LoginClient />} />
           <Route path="/login-sp" element={<LoginSP />} />
           <Route path="/login-admin" element={<LoginAdmin />} />
 
-          {/* Registration */}
           <Route path="/register-client" element={<RegisterClient />} />
           <Route path="/register-sp" element={<RegisterSP />} />
 
-          {/* Client area */}
           <Route
             path="/client"
             element={
@@ -225,11 +150,10 @@ export default function App() {
               </RoleGate>
             }
           >
-            <Route index element={<ClientHome />} />
+            <Route index element={<ClientDashboard />} />
             <Route path="job-request" element={<ClientJobRequest />} />
           </Route>
 
-          {/* Service Provider area */}
           <Route
             path="/sp"
             element={
@@ -238,11 +162,10 @@ export default function App() {
               </RoleGate>
             }
           >
-            <Route index element={<SPHome />} />
-            <Route path="jobs/:id" element={<SPJobPage />} />
+            <Route index element={<SPDashboard />} />
+            <Route path="jobs/:id" element={<SPJobDetail />} />
           </Route>
 
-          {/* Admin area */}
           <Route
             path="/admin"
             element={
@@ -251,7 +174,7 @@ export default function App() {
               </RoleGate>
             }
           >
-            <Route index element={<AdminHome />} />
+            <Route index element={<AdminView />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />
@@ -263,4 +186,5 @@ export default function App() {
   );
 }
 
-export { useRole };
+// Re-export for pages that historically imported from @/App
+export { useRole } from '@/auth/RoleProvider';

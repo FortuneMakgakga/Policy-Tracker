@@ -1,8 +1,8 @@
-import { useEffect, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { ArrowRight, Wrench, ShieldCheck } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
-import { useRole } from "@/App";
+import { useEffect, useMemo, useRef } from 'react';
+import { Button } from '@/components/ui/button';
+import { ArrowRight, Wrench, ShieldCheck } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useRole } from '@/auth/RoleProvider';
 
 export default function Landing() {
   const shapeBlue = useRef<HTMLDivElement>(null);
@@ -12,6 +12,19 @@ export default function Landing() {
 
   const navigate = useNavigate();
   const { role } = useRole();
+
+  // Stable star positions (avoid Math.random in render)
+  const stars = useMemo(
+    () =>
+      Array.from({ length: 40 }, (_, i) => ({
+        id: i,
+        top: `${(i * 17 + 13) % 100}%`,
+        left: `${(i * 23 + 7) % 100}%`,
+        size: `${(i % 3) + 1}px`,
+        duration: `${4 + (i % 6)}s`,
+      })),
+    []
+  );
 
   useEffect(() => {
     if (role) {
@@ -23,13 +36,16 @@ export default function Landing() {
     const handleScroll = () => {
       const scrollY = window.scrollY;
       if (shapeBlue.current) shapeBlue.current.style.transform = `translateY(${scrollY * 0.1}px)`;
-      if (shapePurple.current) shapePurple.current.style.transform = `translateY(${scrollY * -0.05}px)`;
-      if (shapeGreen.current) shapeGreen.current.style.transform = `translateY(${scrollY * 0.08}px)`;
-      if (gradient.current) gradient.current.style.backgroundPosition = `${scrollY * 0.05}% 50%`;
+      if (shapePurple.current)
+        shapePurple.current.style.transform = `translateY(${scrollY * -0.05}px)`;
+      if (shapeGreen.current)
+        shapeGreen.current.style.transform = `translateY(${scrollY * 0.08}px)`;
+      if (gradient.current)
+        gradient.current.style.backgroundPosition = `${scrollY * 0.05}% 50%`;
     };
 
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   return (
@@ -48,16 +64,16 @@ export default function Landing() {
           className="absolute w-64 h-64 bg-green-500 rounded-full opacity-20 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse-slow"
         />
 
-        {Array.from({ length: 40 }).map((_, i) => (
+        {stars.map((s) => (
           <div
-            key={i}
-            className="absolute bg-white rounded-full opacity-10 w-1 h-1 animate-pulse-slow"
+            key={s.id}
+            className="absolute bg-white rounded-full opacity-10 animate-pulse-slow"
             style={{
-              top: `${Math.random() * 100}%`,
-              left: `${Math.random() * 100}%`,
-              width: `${Math.random() * 3 + 1}px`,
-              height: `${Math.random() * 3 + 1}px`,
-              animationDuration: `${Math.random() * 6 + 4}s`,
+              top: s.top,
+              left: s.left,
+              width: s.size,
+              height: s.size,
+              animationDuration: s.duration,
             }}
           />
         ))}
@@ -97,8 +113,8 @@ export default function Landing() {
           </h2>
 
           <p className="text-lg text-gray-300 mb-10 animate-fadeInUp delay-200">
-            Connect with vetted, qualified service providers.
-            Get instant quotes and track your repair job in real-time.
+            Connect with vetted, qualified service providers. Get instant quotes
+            and track your repair job in real-time.
           </p>
 
           <div className="flex flex-col sm:flex-row justify-center gap-6 animate-fadeInUp delay-400">

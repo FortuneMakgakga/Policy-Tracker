@@ -1,30 +1,38 @@
-import { useState } from "react";
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { toast } from "sonner";
-
-const API_BASE =
-  "https://opulent-happiness-7xvg5xp75vq3p95r-5000.app.github.dev";
+import { useState } from 'react';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { toast } from 'sonner';
+import { API_BASE } from '@/lib/api';
 
 export default function ClientJobRequest() {
   const [formData, setFormData] = useState({
-    client_name: "",
-    client_phone: "",
-    address: "",
-    province: "",
-    skill_required: "",
-    job_description: "",
-    appointment_time: "",
-    latitude: "",
-    longitude: "",
+    client_name: '',
+    client_phone: '',
+    address: '',
+    province: '',
+    skill_required: '',
+    job_description: '',
+    appointment_time: '',
+    latitude: '',
+    longitude: '',
   });
 
   const [submitted, setSubmitted] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleChange = (
@@ -34,10 +42,9 @@ export default function ClientJobRequest() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // 📍 Auto get location
   const handleGetLocation = () => {
     if (!navigator.geolocation) {
-      toast.error("Geolocation not supported");
+      toast.error('Geolocation not supported');
       return;
     }
 
@@ -48,10 +55,10 @@ export default function ClientJobRequest() {
           latitude: position.coords.latitude.toString(),
           longitude: position.coords.longitude.toString(),
         }));
-        toast.success("Location captured");
+        toast.success('Location captured');
       },
       () => {
-        toast.error("Failed to get location");
+        toast.error('Failed to get location');
       }
     );
   };
@@ -66,15 +73,15 @@ export default function ClientJobRequest() {
       !formData.address ||
       !formData.province
     ) {
-      setError("Please fill in all required fields.");
+      setError('Please fill in all required fields.');
       return;
     }
 
     try {
       setSubmitting(true);
-      setError("");
+      setError('');
 
-      const clientId = localStorage.getItem("clientId");
+      const clientId = localStorage.getItem('clientId');
 
       const payload = {
         client_id: clientId ? Number(clientId) : undefined,
@@ -90,70 +97,99 @@ export default function ClientJobRequest() {
       };
 
       const res = await fetch(`${API_BASE}/jobs`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Failed to submit service request.");
+        setError(data.error || 'Failed to submit service request.');
         return;
       }
 
-      toast.success("Service request submitted successfully");
+      toast.success('Service request submitted successfully');
       setSubmitted(true);
 
       setFormData({
-        client_name: "",
-        client_phone: "",
-        address: "",
-        province: "",
-        skill_required: "",
-        job_description: "",
-        appointment_time: "",
-        latitude: "",
-        longitude: "",
+        client_name: '',
+        client_phone: '',
+        address: '',
+        province: '',
+        skill_required: '',
+        job_description: '',
+        appointment_time: '',
+        latitude: '',
+        longitude: '',
       });
-    } catch (err) {
-      setError("Could not connect to server.");
+    } catch {
+      setError('Could not connect to server.');
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-50 p-6">
-      <Card className="w-full max-w-lg shadow-xl rounded-2xl">
+    <div className="flex justify-center items-start min-h-[60vh] bg-gray-950 p-6">
+      <Card className="w-full max-w-lg bg-gray-900 border-gray-800 shadow-xl rounded-2xl">
         <CardHeader>
-          <CardTitle className="text-xl font-semibold text-gray-800">
+          <CardTitle className="text-xl font-semibold text-white">
             Submit a Service Request
           </CardTitle>
         </CardHeader>
 
         <CardContent>
           {error && (
-            <p className="text-red-500 text-sm mb-4 bg-red-50 p-2 rounded-md">
+            <p className="text-red-400 text-sm mb-4 bg-red-950/40 border border-red-900 p-2 rounded-md">
               {error}
             </p>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <Input name="client_name" placeholder="Full Name *" value={formData.client_name} onChange={handleChange} />
-            <Input name="client_phone" placeholder="Phone *" value={formData.client_phone} onChange={handleChange} />
-            <Input name="address" placeholder="Address *" value={formData.address} onChange={handleChange} />
-            <Input name="province" placeholder="Province *" value={formData.province} onChange={handleChange} />
-            <Input name="skill_required" placeholder="Service Type *" value={formData.skill_required} onChange={handleChange} />
+            <Input
+              name="client_name"
+              placeholder="Full Name *"
+              value={formData.client_name}
+              onChange={handleChange}
+              className="bg-gray-800 border-gray-700 text-white"
+            />
+            <Input
+              name="client_phone"
+              placeholder="Phone *"
+              value={formData.client_phone}
+              onChange={handleChange}
+              className="bg-gray-800 border-gray-700 text-white"
+            />
+            <Input
+              name="address"
+              placeholder="Address *"
+              value={formData.address}
+              onChange={handleChange}
+              className="bg-gray-800 border-gray-700 text-white"
+            />
+            <Input
+              name="province"
+              placeholder="Province *"
+              value={formData.province}
+              onChange={handleChange}
+              className="bg-gray-800 border-gray-700 text-white"
+            />
+            <Input
+              name="skill_required"
+              placeholder="Service Type *"
+              value={formData.skill_required}
+              onChange={handleChange}
+              className="bg-gray-800 border-gray-700 text-white"
+            />
 
             <Textarea
               name="job_description"
               placeholder="Job Description"
               value={formData.job_description}
               onChange={handleChange}
+              className="bg-gray-800 border-gray-700 text-white"
             />
 
             <Input
@@ -161,21 +197,23 @@ export default function ClientJobRequest() {
               name="appointment_time"
               value={formData.appointment_time}
               onChange={handleChange}
+              className="bg-gray-800 border-gray-700 text-white"
             />
 
-            {/* 📍 Location Section */}
             <div className="flex gap-2">
               <Input
                 name="latitude"
                 placeholder="Latitude"
                 value={formData.latitude}
                 onChange={handleChange}
+                className="bg-gray-800 border-gray-700 text-white"
               />
               <Input
                 name="longitude"
                 placeholder="Longitude"
                 value={formData.longitude}
                 onChange={handleChange}
+                className="bg-gray-800 border-gray-700 text-white"
               />
             </div>
 
@@ -183,21 +221,19 @@ export default function ClientJobRequest() {
               Use My Location
             </Button>
 
-            
-              <Button type="submit" disabled={submitting} className="w-full">
-                {submitting ? "Submitting..." : "Submit Request"}
-              </Button>
-           
+            <Button type="submit" disabled={submitting} className="w-full">
+              {submitting ? 'Submitting...' : 'Submit Request'}
+            </Button>
           </form>
         </CardContent>
       </Card>
 
       <Dialog open={submitted} onOpenChange={setSubmitted}>
-        <DialogContent>
+        <DialogContent className="bg-gray-900 border-gray-800 text-white">
           <DialogHeader>
             <DialogTitle>Request Submitted</DialogTitle>
           </DialogHeader>
-          <p>Your request has been sent successfully.</p>
+          <p className="text-gray-300">Your request has been sent successfully.</p>
           <DialogFooter>
             <Button onClick={() => setSubmitted(false)}>Close</Button>
           </DialogFooter>

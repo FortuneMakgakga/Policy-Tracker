@@ -1,19 +1,26 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 
 export type Role = 'client' | 'sp' | 'admin' | null;
 
-type Ctx = {
+type RoleCtx = {
   role: Role;
   setRole: (r: Role) => void;
   logout: () => void;
 };
 
-const RoleCtx = createContext<Ctx | null>(null);
+const RoleContext = createContext<RoleCtx | null>(null);
 
-export function RoleProvider({ children }: { children: React.ReactNode }) {
-  const [role, setRoleState] = useState<Role>(() => {
-    return (localStorage.getItem('role') as Role) || null;
-  });
+export function RoleProvider({ children }: { children: ReactNode }) {
+  const [role, setRoleState] = useState<Role>(
+    () => (localStorage.getItem('role') as Role) || null
+  );
 
   const setRole = (r: Role) => {
     setRoleState(r);
@@ -21,20 +28,34 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
     else localStorage.removeItem('role');
   };
 
-  const logout = () => setRole(null);
+  const logout = () => {
+    setRole(null);
+    localStorage.removeItem('clientId');
+    localStorage.removeItem('spId');
+  };
 
-  // hook your theme to the role (your globals.css uses tokens)
   useEffect(() => {
-    document.body.dataset.theme = role ?? 'sp'; // default dark for now
-    document.documentElement.classList.add('dark'); // keep dark base on
+    document.documentElement.classList.add('dark');
+    document.body.dataset.theme = role ?? 'sp';
+
+    const titles: Record<Exclude<Role, null>, string> = {
+      client: 'Home Assist — Client',
+      sp: 'Home Assist — Service Provider',
+      admin: 'Home Assist — Admin',
+    };
+
+    document.title = role ? titles[role] : 'Home Assist';
   }, [role]);
 
   const value = useMemo(() => ({ role, setRole, logout }), [role]);
-  return <RoleCtx.Provider value={value}>{children}</RoleCtx.Provider>;
+
+  return (
+    <RoleContext.Provider value={value}>{children}</RoleContext.Provider>
+  );
 }
 
-export const useRole = () => {
-  const ctx = useContext(RoleCtx);
+export function useRole() {
+  const ctx = useContext(RoleContext);
   if (!ctx) throw new Error('useRole must be used within RoleProvider');
   return ctx;
-};
+}
