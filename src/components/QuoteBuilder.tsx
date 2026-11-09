@@ -14,8 +14,7 @@ import { Textarea } from './ui/textarea';
 import { Card } from './ui/card';
 import { Plus, Trash2, FileText } from 'lucide-react';
 import { toast } from 'sonner';
-
-const API_BASE = 'https://opulent-happiness-7xvg5xp75vq3p95r-5000.app.github.dev';
+import { API_BASE } from '@/lib/api';
 
 interface Part {
   name: string;
