@@ -1,38 +1,59 @@
-"use client";
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Loader2, MapPin } from 'lucide-react';
+import { toast } from 'sonner';
+import AuthCard from '@/auth/AuthCard';
+import { Button } from '@/components/ui/button';
+import { API_BASE } from '@/lib/api';
+
+const fieldClass =
+  'w-full rounded-xl border border-black/10 bg-[#f6f6f6] px-4 py-3 text-black placeholder:text-[#9a9a9a] focus:outline-none focus:ring-2 focus:ring-black/20 focus:border-black/20 focus:bg-white transition-colors';
 
 export default function SPRegisterPage() {
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    province: "",
-    skill: "",
-    latitude: "",
-    longitude: "",
-    password: "",
-    confirmPassword: "",
+    name: '',
+    email: '',
+    phone: '',
+    province: '',
+    skill: '',
+    latitude: '',
+    longitude: '',
+    password: '',
+    confirmPassword: '',
   });
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     setForm({ ...form, [e.target.name]: e.target.value });
   }
 
+  function handleGetLocation() {
+    if (!navigator.geolocation) {
+      toast.error('Geolocation not supported');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setForm((prev) => ({
+          ...prev,
+          latitude: pos.coords.latitude.toFixed(6),
+          longitude: pos.coords.longitude.toFixed(6),
+        }));
+        toast.success('Location captured');
+      },
+      () => toast.error('Failed to get location')
+    );
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError("");
-    setSuccess("");
+    setError('');
+    setSuccess('');
 
     if (
       !form.name ||
@@ -43,24 +64,22 @@ export default function SPRegisterPage() {
       !form.password ||
       !form.confirmPassword
     ) {
-      setError("Please complete all required fields.");
+      setError('Please complete all required fields.');
       return;
     }
 
     if (form.password !== form.confirmPassword) {
-      setError("Passwords do not match.");
+      setError('Passwords do not match.');
       return;
     }
 
     setLoading(true);
 
     try {
-      const res = await fetch("https://opulent-happiness-7xvg5xp75vq3p95r-5000.app.github.dev/api/sp/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
+      const res = await fetch(`${API_BASE}/api/sp/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           name: form.name,
           email: form.email,
@@ -76,143 +95,95 @@ export default function SPRegisterPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Registration failed.");
+        setError(data.error || 'Registration failed.');
         return;
       }
 
-      setSuccess("Service provider registered successfully.");
-      localStorage.setItem("userRole", "sp");
-
-      setTimeout(() => {
-        navigate("/login-sp");
-      }, 1000);
-    } catch (err) {
-      setError("Could not connect to server.");
+      setSuccess('Provider account created. Redirecting to login...');
+      setTimeout(() => navigate('/login-sp'), 900);
+    } catch {
+      setError('Could not connect to server.');
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-6">
-      <Card className="w-full max-w-2xl shadow-xl p-6">
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold text-center">
-            Service Provider Registration
-          </CardTitle>
-        </CardHeader>
+    <AuthCard title="Join as a provider" subtitle="Accept nearby jobs and grow your work">
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div>
+          <label className="block text-sm font-semibold text-black mb-1.5">Full name</label>
+          <input name="name" value={form.name} onChange={handleChange} placeholder="Sipho Dlamini" className={fieldClass} />
+        </div>
 
-        <CardContent>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label>Full Name</Label>
-                <Input
-                  name="name"
-                  value={form.name}
-                  onChange={handleChange}
-                  placeholder="John Doe"
-                  required
-                />
-              </div>
+        <div>
+          <label className="block text-sm font-semibold text-black mb-1.5">Email</label>
+          <input name="email" type="email" value={form.email} onChange={handleChange} placeholder="you@email.com" className={fieldClass} />
+        </div>
 
-              <div>
-                <Label>Email</Label>
-                <Input
-                  type="email"
-                  name="email"
-                  value={form.email}
-                  onChange={handleChange}
-                  placeholder="example@mail.com"
-                  required
-                />
-              </div>
+        <div>
+          <label className="block text-sm font-semibold text-black mb-1.5">Phone</label>
+          <input name="phone" value={form.phone} onChange={handleChange} placeholder="072 123 4567" className={fieldClass} />
+        </div>
 
-              <div>
-                <Label>Phone Number</Label>
-                <Input
-                  name="phone"
-                  value={form.phone}
-                  onChange={handleChange}
-                  placeholder="072 123 4567"
-                  required
-                />
-              </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-semibold text-black mb-1.5">Province</label>
+            <input name="province" value={form.province} onChange={handleChange} placeholder="Gauteng" className={fieldClass} />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-black mb-1.5">Skill</label>
+            <input name="skill" value={form.skill} onChange={handleChange} placeholder="Plumber" className={fieldClass} />
+          </div>
+        </div>
 
-              <div>
-                <Label>Province</Label>
-                <Input
-                  name="province"
-                  value={form.province}
-                  onChange={handleChange}
-                  placeholder="Gauteng"
-                  required
-                />
-              </div>
+        <div>
+          <label className="block text-sm font-semibold text-black mb-1.5">Service area</label>
+          <div className="grid grid-cols-2 gap-3 mb-2">
+            <input name="latitude" value={form.latitude} onChange={handleChange} placeholder="Latitude" className={fieldClass} />
+            <input name="longitude" value={form.longitude} onChange={handleChange} placeholder="Longitude" className={fieldClass} />
+          </div>
+          <Button type="button" variant="outline" onClick={handleGetLocation} className="w-full">
+            <MapPin className="w-4 h-4" />
+            Use my location
+          </Button>
+        </div>
 
-              <div>
-                <Label>Skill</Label>
-                <Input
-                  name="skill"
-                  value={form.skill}
-                  onChange={handleChange}
-                  placeholder="Plumber"
-                  required
-                />
-              </div>
+        <div>
+          <label className="block text-sm font-semibold text-black mb-1.5">Password</label>
+          <input name="password" type="password" value={form.password} onChange={handleChange} placeholder="Create a password" className={fieldClass} />
+        </div>
 
-              <div>
-                <Label>Password</Label>
-                <Input
-                  type="password"
-                  name="password"
-                  value={form.password}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
+        <div>
+          <label className="block text-sm font-semibold text-black mb-1.5">Confirm password</label>
+          <input name="confirmPassword" type="password" value={form.confirmPassword} onChange={handleChange} placeholder="Repeat password" className={fieldClass} />
+        </div>
 
-              <div>
-                <Label>Confirm Password</Label>
-                <Input
-                  type="password"
-                  name="confirmPassword"
-                  value={form.confirmPassword}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
+        {error && (
+          <p className="text-[#e11900] text-sm bg-red-50 border border-red-100 rounded-xl px-3 py-2">{error}</p>
+        )}
+        {success && (
+          <p className="text-[#0e8345] text-sm bg-green-50 border border-green-100 rounded-xl px-3 py-2">{success}</p>
+        )}
 
-              <div>
-                <Label>Latitude</Label>
-                <Input
-                  name="latitude"
-                  value={form.latitude}
-                  onChange={handleChange}
-                  placeholder="-26.2041"
-                />
-              </div>
+        <Button type="submit" className="w-full mt-2" size="lg" disabled={loading}>
+          {loading ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Creating account...
+            </>
+          ) : (
+            'Create provider account'
+          )}
+        </Button>
 
-              <div>
-                <Label>Longitude</Label>
-                <Input
-                  name="longitude"
-                  value={form.longitude}
-                  onChange={handleChange}
-                  placeholder="28.0473"
-                />
-              </div>
-            </div>
-
-            {error && <p className="text-red-600 text-sm">{error}</p>}
-            {success && <p className="text-green-600 text-sm">{success}</p>}
-
-            <Button type="submit" className="w-full mt-6 py-3 text-lg rounded-xl" disabled={loading}>
-              {loading ? "Registering..." : "Register Service Provider"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+        <p className="text-center text-sm text-[#6b6b6b] pt-2">
+          Already registered?{' '}
+          <Link to="/login-sp" className="font-semibold text-black underline-offset-2 hover:underline">
+            Log in
+          </Link>
+        </p>
+      </form>
+    </AuthCard>
   );
 }

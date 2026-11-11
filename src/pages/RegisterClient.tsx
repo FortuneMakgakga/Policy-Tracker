@@ -1,30 +1,29 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Link, useNavigate } from "react-router-dom";
-import { Loader2 } from "lucide-react";
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Loader2, MapPin } from 'lucide-react';
+import AuthCard from '@/auth/AuthCard';
+import { Button } from '@/components/ui/button';
+import { API_BASE } from '@/lib/api';
 
-const API_BASE =
-  "https://opulent-happiness-7xvg5xp75vq3p95r-5000.app.github.dev";
+const fieldClass =
+  'w-full rounded-xl border border-black/10 bg-[#f6f6f6] px-4 py-3 text-black placeholder:text-[#9a9a9a] focus:outline-none focus:ring-2 focus:ring-black/20 focus:border-black/20 focus:bg-white transition-colors';
 
 export default function RegisterClient() {
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    password: "",
-    confirmPassword: "",
-    address: "",
-    province: "",
+    name: '',
+    email: '',
+    phone: '',
+    password: '',
+    confirmPassword: '',
+    address: '',
+    province: '',
   });
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -32,8 +31,8 @@ export default function RegisterClient() {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError("");
-    setSuccess("");
+    setError('');
+    setSuccess('');
 
     if (
       !form.name ||
@@ -44,12 +43,12 @@ export default function RegisterClient() {
       !form.password ||
       !form.confirmPassword
     ) {
-      setError("Please fill in all fields.");
+      setError('Please fill in all fields.');
       return;
     }
 
     if (form.password !== form.confirmPassword) {
-      setError("Passwords do not match.");
+      setError('Passwords do not match.');
       return;
     }
 
@@ -57,14 +56,12 @@ export default function RegisterClient() {
 
     try {
       const response = await fetch(`${API_BASE}/api/client/register`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           name: form.name,
-          client_name: form.name, // backend safety
+          client_name: form.name,
           email: form.email,
           phone: form.phone,
           password: form.password,
@@ -76,149 +73,88 @@ export default function RegisterClient() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || "Registration failed.");
+        setError(data.error || 'Registration failed.');
         return;
       }
 
-      // ✅ Store client info for later use
       if (data.client_id) {
-        localStorage.setItem("clientId", data.client_id.toString());
+        localStorage.setItem('clientId', data.client_id.toString());
       }
+      localStorage.setItem('clientName', form.name);
+      localStorage.setItem('clientPhone', form.phone);
 
-      localStorage.setItem("clientName", form.name);
-      localStorage.setItem("clientPhone", form.phone);
-
-      setSuccess("Account created successfully.");
-
-      setTimeout(() => {
-        navigate("/login-client");
-      }, 1000);
-    } catch (err) {
-      setError("Could not connect to server.");
+      setSuccess('Account created. Redirecting to login...');
+      setTimeout(() => navigate('/login-client'), 900);
+    } catch {
+      setError('Could not connect to server.');
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center px-4">
-      <Card className="w-full max-w-lg bg-gray-900 border-gray-800">
-        <CardHeader>
-          <CardTitle className="text-center text-2xl text-white">
-            Create Your Home Assist Account
-          </CardTitle>
-          <p className="text-center text-gray-400 text-sm">
-            Book repairs, track jobs, and connect with trusted service providers.
-          </p>
-        </CardHeader>
+    <AuthCard title="Create your account" subtitle="Request repairs and track them live">
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div>
+          <label className="block text-sm font-semibold text-black mb-1.5">Full name</label>
+          <input name="name" value={form.name} onChange={handleChange} placeholder="Thabo Molefe" className={fieldClass} />
+        </div>
 
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label className="text-gray-300">Full Name</Label>
-              <Input
-                name="name"
-                value={form.name}
-                onChange={handleChange}
-                placeholder="John Doe"
-                className="bg-gray-800 border-gray-700 text-white"
-                required
-              />
-            </div>
+        <div>
+          <label className="block text-sm font-semibold text-black mb-1.5">Email</label>
+          <input name="email" type="email" value={form.email} onChange={handleChange} placeholder="you@email.com" className={fieldClass} />
+        </div>
 
-            <div>
-              <Label className="text-gray-300">Email Address</Label>
-              <Input
-                type="email"
-                name="email"
-                value={form.email}
-                onChange={handleChange}
-                placeholder="example@gmail.com"
-                className="bg-gray-800 border-gray-700 text-white"
-                required
-              />
-            </div>
+        <div>
+          <label className="block text-sm font-semibold text-black mb-1.5">Phone</label>
+          <input name="phone" value={form.phone} onChange={handleChange} placeholder="071 234 5678" className={fieldClass} />
+        </div>
 
-            <div>
-              <Label className="text-gray-300">Phone Number</Label>
-              <Input
-                name="phone"
-                value={form.phone}
-                onChange={handleChange}
-                placeholder="071 234 5678"
-                className="bg-gray-800 border-gray-700 text-white"
-                required
-              />
-            </div>
+        <div>
+          <label className="block text-sm font-semibold text-black mb-1.5">Home address</label>
+          <input name="address" value={form.address} onChange={handleChange} placeholder="123 Example Street, Johannesburg" className={fieldClass} />
+        </div>
 
-            <div>
-              <Label className="text-gray-300">Home Address</Label>
-              <Input
-                name="address"
-                value={form.address}
-                onChange={handleChange}
-                placeholder="123 Example Street, Johannesburg"
-                className="bg-gray-800 border-gray-700 text-white"
-                required
-              />
-            </div>
+        <div>
+          <label className="block text-sm font-semibold text-black mb-1.5">Province</label>
+          <input name="province" value={form.province} onChange={handleChange} placeholder="Gauteng" className={fieldClass} />
+        </div>
 
-            <div>
-              <Label className="text-gray-300">Province</Label>
-              <Input
-                name="province"
-                value={form.province}
-                onChange={handleChange}
-                placeholder="e.g. Gauteng"
-                className="bg-gray-800 border-gray-700 text-white"
-                required
-              />
-            </div>
+        <div>
+          <label className="block text-sm font-semibold text-black mb-1.5">Password</label>
+          <input name="password" type="password" value={form.password} onChange={handleChange} placeholder="Create a password" className={fieldClass} />
+        </div>
 
-            <div>
-              <Label className="text-gray-300">Password</Label>
-              <Input
-                type="password"
-                name="password"
-                value={form.password}
-                onChange={handleChange}
-                className="bg-gray-800 border-gray-700 text-white"
-                required
-              />
-            </div>
+        <div>
+          <label className="block text-sm font-semibold text-black mb-1.5">Confirm password</label>
+          <input name="confirmPassword" type="password" value={form.confirmPassword} onChange={handleChange} placeholder="Repeat password" className={fieldClass} />
+        </div>
 
-            <div>
-              <Label className="text-gray-300">Confirm Password</Label>
-              <Input
-                type="password"
-                name="confirmPassword"
-                value={form.confirmPassword}
-                onChange={handleChange}
-                className="bg-gray-800 border-gray-700 text-white"
-                required
-              />
-            </div>
+        {error && (
+          <p className="text-[#e11900] text-sm bg-red-50 border border-red-100 rounded-xl px-3 py-2">{error}</p>
+        )}
+        {success && (
+          <p className="text-[#0e8345] text-sm bg-green-50 border border-green-100 rounded-xl px-3 py-2">{success}</p>
+        )}
 
-            {error && <p className="text-red-400 text-sm">{error}</p>}
-            {success && <p className="text-green-400 text-sm">{success}</p>}
+        <Button type="submit" className="w-full mt-2" size="lg" disabled={loading}>
+          {loading ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Creating account...
+            </>
+          ) : (
+            'Create account'
+          )}
+        </Button>
 
-            <Button type="submit" className="w-full mt-4" disabled={loading}>
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                "Create Account"
-              )}
-            </Button>
-
-            <p className="text-center text-gray-400 text-sm mt-4">
-              Already have an account?{" "}
-              <Link to="/login-client" className="text-blue-400 hover:underline">
-                Login here
-              </Link>
-            </p>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+        <p className="text-center text-sm text-[#6b6b6b] pt-2">
+          Already have an account?{' '}
+          <Link to="/login-client" className="font-semibold text-black underline-offset-2 hover:underline">
+            Log in
+          </Link>
+        </p>
+      </form>
+    </AuthCard>
   );
 }
