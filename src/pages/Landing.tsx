@@ -1,194 +1,129 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Wrench, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Wrench, ShieldCheck, Clock, MapPin, Star } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useRole } from '@/auth/RoleProvider';
 
 export default function Landing() {
-  const shapeBlue = useRef<HTMLDivElement>(null);
-  const shapePurple = useRef<HTMLDivElement>(null);
-  const shapeGreen = useRef<HTMLDivElement>(null);
-  const gradient = useRef<HTMLDivElement>(null);
-
   const navigate = useNavigate();
   const { role } = useRole();
 
-  // Stable star positions (avoid Math.random in render)
-  const stars = useMemo(
-    () =>
-      Array.from({ length: 40 }, (_, i) => ({
-        id: i,
-        top: `${(i * 17 + 13) % 100}%`,
-        left: `${(i * 23 + 7) % 100}%`,
-        size: `${(i % 3) + 1}px`,
-        duration: `${4 + (i % 6)}s`,
-      })),
-    []
-  );
-
   useEffect(() => {
-    if (role) {
-      navigate(`/${role}`, { replace: true });
-    }
+    if (role) navigate(`/${role}`, { replace: true });
   }, [role, navigate]);
 
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollY = window.scrollY;
-      if (shapeBlue.current) shapeBlue.current.style.transform = `translateY(${scrollY * 0.1}px)`;
-      if (shapePurple.current)
-        shapePurple.current.style.transform = `translateY(${scrollY * -0.05}px)`;
-      if (shapeGreen.current)
-        shapeGreen.current.style.transform = `translateY(${scrollY * 0.08}px)`;
-      if (gradient.current)
-        gradient.current.style.backgroundPosition = `${scrollY * 0.05}% 50%`;
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
   return (
-    <div className="relative min-h-screen bg-gray-950 text-white flex flex-col overflow-hidden">
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-20">
-        <div
-          ref={shapeBlue}
-          className="absolute w-72 h-72 bg-blue-600 rounded-full opacity-20 animate-pulse-slow -top-20 -left-20"
-        />
-        <div
-          ref={shapePurple}
-          className="absolute w-96 h-96 bg-purple-500 rounded-full opacity-15 animate-pulse-slow -bottom-32 -right-32"
-        />
-        <div
-          ref={shapeGreen}
-          className="absolute w-64 h-64 bg-green-500 rounded-full opacity-20 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse-slow"
-        />
-
-        {stars.map((s) => (
-          <div
-            key={s.id}
-            className="absolute bg-white rounded-full opacity-10 animate-pulse-slow"
-            style={{
-              top: s.top,
-              left: s.left,
-              width: s.size,
-              height: s.size,
-              animationDuration: s.duration,
-            }}
-          />
-        ))}
-      </div>
-
-      <div className="absolute inset-0 -z-10">
-        <div
-          ref={gradient}
-          className="w-full h-full bg-gradient-to-r from-blue-500 via-purple-600 to-pink-500 opacity-30 animate-gradient-background"
-        />
-      </div>
-
-      <header className="w-full py-6 border-b border-gray-800 z-10 relative">
-        <div className="max-w-6xl mx-auto flex items-center justify-between px-6">
-          <div className="flex items-center gap-3 animate-fadeIn">
-            <div className="bg-blue-500 p-3 rounded-xl shadow-lg">
-              <Wrench className="w-6 h-6 text-white" />
+    <div className="min-h-screen bg-[#f6f6f6] text-black flex flex-col">
+      <header className="w-full bg-white border-b border-black/5 sticky top-0 z-20">
+        <div className="max-w-6xl mx-auto flex items-center justify-between px-5 py-4">
+          <Link to="/" className="flex items-center gap-2.5">
+            <div className="w-9 h-9 bg-black rounded-full flex items-center justify-center">
+              <Wrench className="w-4 h-4 text-white" strokeWidth={2.5} />
             </div>
-            <h1 className="font-bold text-2xl">Home Assist</h1>
-          </div>
+            <span className="font-bold text-lg tracking-tight">Home Assist</span>
+          </Link>
 
-          <nav className="flex items-center gap-4 sm:gap-6 text-gray-300 animate-fadeIn delay-200">
-            <Link to="/login-client" className="hover:text-white transition-colors">
-              Client Login
+          <nav className="flex items-center gap-2 sm:gap-3">
+            <Link
+              to="/login-client"
+              className="text-sm font-medium text-black/70 hover:text-black px-3 py-2 hidden sm:inline"
+            >
+              Log in
             </Link>
-            <Link to="/login-sp" className="hover:text-white transition-colors">
-              Provider Login
+            <Link to="/register-client">
+              <Button size="sm">Get started</Button>
             </Link>
           </nav>
         </div>
       </header>
 
-      <section className="flex-1 flex items-center justify-center px-6 relative z-10">
-        <div className="max-w-4xl text-center space-y-8">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6 animate-fadeInUp">
-            Fast, Reliable Home Repairs in South Africa
-          </h2>
+      <main className="flex-1">
+        <section className="max-w-6xl mx-auto px-5 pt-14 pb-16 sm:pt-20 sm:pb-24">
+          <div className="max-w-2xl">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight leading-[1.08] mb-5">
+              Home repairs,
+              <br />
+              on demand
+            </h1>
+            <p className="text-lg text-[#6b6b6b] mb-8 max-w-md leading-relaxed">
+              Request a vetted technician in minutes. Track them live. Pay when the job is done.
+            </p>
 
-          <p className="text-lg text-gray-300 mb-10 animate-fadeInUp delay-200">
-            Connect with vetted, qualified service providers. Get instant quotes
-            and track your repair job in real-time.
-          </p>
-
-          <div className="flex flex-col sm:flex-row justify-center gap-6 animate-fadeInUp delay-400">
-            <Link to="/register-client">
-              <Button
-                size="lg"
-                className="px-10 py-6 text-lg transform transition-all hover:-translate-y-1 hover:scale-105 hover:rotate-1 hover:shadow-2xl"
-              >
-                I Need Help
-                <ArrowRight className="ml-2 w-5 h-5" />
-              </Button>
-            </Link>
-
-            <Link to="/register-sp">
-              <Button
-                size="lg"
-                variant="secondary"
-                className="px-10 py-6 text-lg transform transition-all hover:-translate-y-1 hover:scale-105 hover:-rotate-1 hover:shadow-2xl"
-              >
-                I’m a Service Provider
-              </Button>
-            </Link>
-
-            <Link to="/login-admin">
-              <Button
-                size="lg"
-                variant="outline"
-                className="px-10 py-6 text-lg border-gray-600 text-white hover:bg-gray-800 transform transition-all hover:-translate-y-1 hover:scale-105"
-              >
-                <ShieldCheck className="mr-2 w-5 h-5" />
-                Staff Login
-              </Button>
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link to="/register-client" className="sm:flex-1 sm:max-w-[220px]">
+                <Button size="lg" className="w-full">
+                  Request help
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </Link>
+              <Link to="/register-sp" className="sm:flex-1 sm:max-w-[220px]">
+                <Button size="lg" variant="outline" className="w-full">
+                  Drive jobs
+                </Button>
+              </Link>
+            </div>
           </div>
-        </div>
-      </section>
 
-      <footer className="py-6 border-t border-gray-800 text-center text-gray-500 text-sm animate-fadeIn delay-600 z-10 relative">
-        © {new Date().getFullYear()} Home Assist — All Rights Reserved
+          <div className="mt-16 grid sm:grid-cols-3 gap-4">
+            {[
+              { icon: Clock, title: 'Fast dispatch', body: 'Matched with nearby pros as soon as you request.' },
+              { icon: MapPin, title: 'Live tracking', body: 'See your technician on the map until they arrive.' },
+              { icon: Star, title: 'Trusted pros', body: 'Rated providers with clear quotes before work starts.' },
+            ].map(({ icon: Icon, title, body }) => (
+              <div key={title} className="ha-card p-5">
+                <div className="w-10 h-10 rounded-full bg-black/5 flex items-center justify-center mb-3">
+                  <Icon className="w-5 h-5 text-black" />
+                </div>
+                <h3 className="font-semibold text-base mb-1">{title}</h3>
+                <p className="text-sm text-[#6b6b6b] leading-relaxed">{body}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="bg-white border-y border-black/5">
+          <div className="max-w-6xl mx-auto px-5 py-14 grid md:grid-cols-3 gap-6">
+            <div className="rounded-2xl bg-[#f6f6f6] p-6 flex flex-col">
+              <h3 className="text-xl font-bold mb-2">I need a repair</h3>
+              <p className="text-sm text-[#6b6b6b] mb-6 flex-1">
+                Plumbing, electrical, general fixes — request a job and get quotes fast.
+              </p>
+              <Link to="/login-client">
+                <Button className="w-full">Client log in</Button>
+              </Link>
+            </div>
+
+            <div className="rounded-2xl bg-[#f6f6f6] p-6 flex flex-col">
+              <h3 className="text-xl font-bold mb-2">I do the work</h3>
+              <p className="text-sm text-[#6b6b6b] mb-6 flex-1">
+                Accept nearby jobs, update status live, and get paid for completed work.
+              </p>
+              <Link to="/login-sp">
+                <Button className="w-full">Provider log in</Button>
+              </Link>
+            </div>
+
+            <div className="rounded-2xl bg-black text-white p-6 flex flex-col">
+              <div className="flex items-center gap-2 mb-2">
+                <ShieldCheck className="w-5 h-5" />
+                <h3 className="text-xl font-bold">Staff</h3>
+              </div>
+              <p className="text-sm text-white/70 mb-6 flex-1">
+                Approve quotes, monitor jobs, and manage the network.
+              </p>
+              <Link to="/login-admin">
+                <Button variant="secondary" className="w-full bg-white text-black hover:bg-white/90">
+                  Staff log in
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer className="py-8 text-center text-sm text-[#6b6b6b]">
+        © {new Date().getFullYear()} Home Assist
       </footer>
-
-      <style>
-        {`
-          .animate-fadeIn { opacity: 0; animation: fadeIn 1s forwards; }
-          .animate-fadeInUp { opacity: 0; transform: translateY(20px); animation: fadeInUp 1s forwards; }
-          .delay-200 { animation-delay: 0.2s; }
-          .delay-400 { animation-delay: 0.4s; }
-          .delay-600 { animation-delay: 0.6s; }
-
-          @keyframes fadeIn { to { opacity: 1; } }
-          @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
-
-          .animate-pulse-slow {
-            animation: pulseSlow 6s ease-in-out infinite alternate;
-          }
-
-          @keyframes pulseSlow {
-            0% { transform: scale(0.95) translateY(0px); opacity: 0.15; }
-            50% { transform: scale(1.05) translateY(10px); opacity: 0.25; }
-            100% { transform: scale(0.95) translateY(0px); opacity: 0.15; }
-          }
-
-          .animate-gradient-background {
-            background-size: 200% 200%;
-            animation: gradientShift 15s ease infinite;
-          }
-
-          @keyframes gradientShift {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-          }
-        `}
-      </style>
     </div>
   );
 }

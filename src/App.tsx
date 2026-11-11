@@ -23,46 +23,59 @@ import { Toaster } from '@/components/ui/sonner';
 
 function Brand() {
   return (
-    <div className="flex items-center gap-3">
-      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-        <Home className="w-6 h-6 text-white" />
+    <Link to="/" className="flex items-center gap-2.5">
+      <div className="w-9 h-9 bg-black rounded-full flex items-center justify-center">
+        <Home className="w-4 h-4 text-white" strokeWidth={2.5} />
       </div>
-      <div>
-        <h1 className="text-white text-xl">Home Assist</h1>
-        <p className="text-gray-400 text-xs">Professional Home Repair Services</p>
+      <div className="leading-tight">
+        <div className="text-black font-bold text-base tracking-tight">Home Assist</div>
       </div>
-    </div>
+    </Link>
+  );
+}
+
+function ShellNav({ links }: { links: { to: string; label: string }[] }) {
+  const { logout } = useRole();
+
+  return (
+    <header className="bg-white border-b border-black/5 sticky top-0 z-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
+        <Brand />
+        <nav className="flex items-center gap-1 sm:gap-2">
+          {links.map((l) => (
+            <Link
+              key={l.to}
+              to={l.to}
+              className="text-sm font-medium text-black/70 hover:text-black px-3 py-2 rounded-full hover:bg-black/5 transition-colors"
+            >
+              {l.label}
+            </Link>
+          ))}
+          <button
+            onClick={() => {
+              logout();
+              toast('Logged out', { description: 'See you next time.' });
+            }}
+            className="ml-1 text-sm font-semibold text-black px-4 py-2 rounded-full border border-black/10 hover:bg-black/5 transition-colors"
+          >
+            Log out
+          </button>
+        </nav>
+      </div>
+    </header>
   );
 }
 
 function ClientLayout() {
-  const { logout } = useRole();
-
   return (
-    <div className="min-h-screen bg-gray-950">
-      <header className="bg-gray-900 border-b border-gray-800">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Brand />
-          <nav className="flex items-center gap-3">
-            <Link to="/client" className="text-gray-300 hover:text-white text-sm">
-              Dashboard
-            </Link>
-            <Link to="/client/job-request" className="text-gray-300 hover:text-white text-sm">
-              Request Job
-            </Link>
-            <button
-              onClick={() => {
-                logout();
-                toast('Logged out successfully', { description: 'You have been signed out.' });
-              }}
-              className="rounded-md border border-gray-700 px-3 py-1.5 text-sm text-white hover:bg-gray-800"
-            >
-              Logout
-            </button>
-          </nav>
-        </div>
-      </header>
-      <main className="max-w-7xl mx-auto px-6 py-6">
+    <div className="min-h-screen bg-[#f6f6f6]">
+      <ShellNav
+        links={[
+          { to: '/client', label: 'Home' },
+          { to: '/client/job-request', label: 'Request' },
+        ]}
+      />
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         <Outlet />
       </main>
     </div>
@@ -70,30 +83,10 @@ function ClientLayout() {
 }
 
 function SPLayout() {
-  const { logout } = useRole();
-
   return (
-    <div className="min-h-screen bg-gray-950">
-      <header className="bg-gray-900 border-b border-gray-800">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Brand />
-          <nav className="flex items-center gap-3">
-            <Link to="/sp" className="text-gray-300 hover:text-white text-sm">
-              Dashboard
-            </Link>
-            <button
-              onClick={() => {
-                logout();
-                toast('Logged out successfully', { description: 'You have been signed out.' });
-              }}
-              className="rounded-md border border-gray-700 px-3 py-1.5 text-sm text-white hover:bg-gray-800"
-            >
-              Logout
-            </button>
-          </nav>
-        </div>
-      </header>
-      <main className="max-w-7xl mx-auto px-6 py-6">
+    <div className="min-h-screen bg-[#f6f6f6]">
+      <ShellNav links={[{ to: '/sp', label: 'Jobs' }]} />
+      <main className="max-w-7xl mx-auto px-0 sm:px-6 py-0 sm:py-6">
         <Outlet />
       </main>
     </div>
@@ -101,27 +94,10 @@ function SPLayout() {
 }
 
 function AdminLayout() {
-  const { logout } = useRole();
-
   return (
-    <div className="min-h-screen bg-gray-950">
-      <header className="bg-gray-900 border-b border-gray-800">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Brand />
-          <nav className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                logout();
-                toast('Logged out successfully', { description: 'You have been signed out.' });
-              }}
-              className="rounded-md border border-gray-700 px-3 py-1.5 text-sm text-white hover:bg-gray-800"
-            >
-              Logout
-            </button>
-          </nav>
-        </div>
-      </header>
-      <main className="max-w-7xl mx-auto px-6 py-6">
+    <div className="min-h-screen bg-[#f6f6f6]">
+      <ShellNav links={[{ to: '/admin', label: 'Admin' }]} />
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         <Outlet />
       </main>
     </div>
@@ -134,14 +110,11 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Landing />} />
-
           <Route path="/login-client" element={<LoginClient />} />
           <Route path="/login-sp" element={<LoginSP />} />
           <Route path="/login-admin" element={<LoginAdmin />} />
-
           <Route path="/register-client" element={<RegisterClient />} />
           <Route path="/register-sp" element={<RegisterSP />} />
-
           <Route
             path="/client"
             element={
@@ -153,7 +126,6 @@ export default function App() {
             <Route index element={<ClientDashboard />} />
             <Route path="job-request" element={<ClientJobRequest />} />
           </Route>
-
           <Route
             path="/sp"
             element={
@@ -165,7 +137,6 @@ export default function App() {
             <Route index element={<SPDashboard />} />
             <Route path="jobs/:id" element={<SPJobDetail />} />
           </Route>
-
           <Route
             path="/admin"
             element={
@@ -176,15 +147,12 @@ export default function App() {
           >
             <Route index element={<AdminView />} />
           </Route>
-
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-
         <Toaster />
       </BrowserRouter>
     </RoleProvider>
   );
 }
 
-// Re-export for pages that historically imported from @/App
 export { useRole } from '@/auth/RoleProvider';
