@@ -133,7 +133,6 @@ export function ClientDashboard() {
         }
       }
 
-      // Graceful demo fallback
       if (!loaded) {
         try {
           const res = await fetch('/fixtures/job_detail.json');
@@ -164,7 +163,6 @@ export function ClientDashboard() {
       const selected = loaded.find((j) => j.id === nextId) || loaded[0];
       setJobDetail(selected);
 
-      // Optional tracking payload
       try {
         const trackRes = await fetch(`${API_BASE}/api/jobs/${selected.id}/tracking`, {
           credentials: 'include',
@@ -224,7 +222,6 @@ export function ClientDashboard() {
         headers: { 'Content-Type': 'application/json' },
       });
       if (!res.ok) {
-        // Demo-friendly success when endpoint is not ready
         toast.success('Payment processed successfully!');
         setJobDetail((prev) => (prev ? { ...prev, payment_status: 'paid' } : prev));
         return;
@@ -239,16 +236,16 @@ export function ClientDashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[40vh] bg-gray-950">
-        <div className="text-gray-400">Loading your jobs...</div>
+      <div className="flex items-center justify-center min-h-[40vh] bg-[#f6f6f6]">
+        <div className="text-[#6b6b6b]">Loading your jobs...</div>
       </div>
     );
   }
 
   if (error && jobs.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[40vh] gap-4 bg-gray-950">
-        <p className="text-red-400">{error}</p>
+      <div className="flex flex-col items-center justify-center min-h-[40vh] gap-4 bg-[#f6f6f6]">
+        <p className="text-[#e11900]">{error}</p>
         <Button onClick={() => { setLoading(true); loadJobs(); }}>
           <RefreshCw className="w-4 h-4 mr-2" />
           Retry
@@ -259,9 +256,9 @@ export function ClientDashboard() {
 
   if (jobs.length === 0 || !jobDetail) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[40vh] gap-4 bg-gray-950 text-center px-6">
-        <h2 className="text-white text-2xl">No service requests yet</h2>
-        <p className="text-gray-400">Submit a job request to get started.</p>
+      <div className="flex flex-col items-center justify-center min-h-[40vh] gap-4 bg-[#f6f6f6] text-center px-6">
+        <h2 className="text-black text-2xl font-bold">No service requests yet</h2>
+        <p className="text-[#6b6b6b]">Submit a job request to get started.</p>
         <Link to="/client/job-request">
           <Button>
             <Plus className="w-4 h-4 mr-2" />
@@ -281,12 +278,12 @@ export function ClientDashboard() {
   const clientLng = tracking?.client_lng ?? jobDetail.lng ?? 28.0473;
 
   return (
-    <div className="min-h-screen bg-gray-950">
+    <div className="min-h-screen bg-[#f6f6f6]">
       <div className="max-w-7xl mx-auto">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-white text-3xl mb-1">Your Jobs</h1>
-            <p className="text-gray-400">Track and manage your service requests</p>
+            <h1 className="text-black text-3xl font-bold tracking-tight mb-1">Your jobs</h1>
+            <p className="text-[#6b6b6b]">Track and manage your service requests</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => { setLoading(true); loadJobs(); }}>
@@ -296,7 +293,7 @@ export function ClientDashboard() {
             <Link to="/client/job-request">
               <Button>
                 <Plus className="w-4 h-4 mr-2" />
-                New Request
+                New request
               </Button>
             </Link>
           </div>
@@ -311,14 +308,14 @@ export function ClientDashboard() {
                 <button
                   key={job.id}
                   onClick={() => selectJob(job.id)}
-                  className={`shrink-0 rounded-lg border px-4 py-3 text-left transition-colors ${
+                  className={`shrink-0 rounded-2xl border px-4 py-3 text-left transition-colors ${
                     active
-                      ? 'border-blue-500 bg-blue-950/40'
-                      : 'border-gray-800 bg-gray-900 hover:border-gray-700'
+                      ? 'border-black bg-black/5'
+                      : 'border-black/10 bg-white hover:border-black/20'
                   }`}
                 >
-                  <p className="text-white text-sm font-medium">#{job.id}</p>
-                  <p className="text-gray-400 text-xs">{job.service_type}</p>
+                  <p className="text-black text-sm font-semibold">#{job.id}</p>
+                  <p className="text-[#6b6b6b] text-xs">{job.service_type}</p>
                   <Badge variant={badge.variant} className="mt-2">
                     {badge.label}
                   </Badge>
@@ -331,7 +328,7 @@ export function ClientDashboard() {
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             {tracking && (
-              <Card className="bg-gray-900 border-gray-800 p-0 overflow-hidden h-[420px]">
+              <Card className="bg-white border-black/5 ha-shadow p-0 overflow-hidden h-[420px] rounded-2xl">
                 <MapView
                   center={[clientLat, clientLng]}
                   markers={[
@@ -351,60 +348,56 @@ export function ClientDashboard() {
               </Card>
             )}
 
-            <Card className="bg-gray-900 border-gray-800 p-6">
+            <Card className="bg-white border-black/5 ha-shadow p-6 rounded-2xl">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h2 className="text-white text-xl mb-2">Service Status</h2>
+                  <h2 className="text-black text-xl font-bold mb-2">Service status</h2>
                   <Badge variant={stageBadge.variant}>{stageBadge.label}</Badge>
                 </div>
                 {tracking && tracking.distance_m < 1000 && (
                   <div className="text-right">
-                    <p className="text-gray-400 text-sm">Distance</p>
-                    <p className="text-white text-2xl">{tracking.distance_m}m</p>
+                    <p className="text-[#6b6b6b] text-sm">Distance</p>
+                    <p className="text-black text-2xl font-bold">{tracking.distance_m}m</p>
                   </div>
                 )}
               </div>
 
               {jobDetail.stage === 'en_route' && tracking && (
-                <div className="flex items-center gap-4 bg-blue-950 border border-blue-900 rounded-lg p-4">
-                  <Clock className="w-8 h-8 text-blue-400" />
+                <div className="flex items-center gap-4 bg-black/5 border border-black/10 rounded-2xl p-4">
+                  <Clock className="w-8 h-8 text-black" />
                   <div>
-                    <p className="text-blue-400">Estimated Arrival</p>
-                    <p className="text-white text-xl">{tracking.eta_minutes} minutes</p>
+                    <p className="text-black font-medium">Estimated arrival</p>
+                    <p className="text-black text-xl font-bold">{tracking.eta_minutes} minutes</p>
                   </div>
                 </div>
               )}
             </Card>
 
             {(jobDetail.invoice || jobDetail.quote) && (
-              <Card className="bg-gray-900 border-gray-800 p-6">
+              <Card className="bg-white border-black/5 ha-shadow p-6 rounded-2xl">
                 <div className="flex items-center gap-3 mb-4">
-                  <CreditCard className="w-5 h-5 text-gray-400" />
-                  <h2 className="text-white text-xl">Payment</h2>
+                  <CreditCard className="w-5 h-5 text-[#6b6b6b]" />
+                  <h2 className="text-black text-xl font-bold">Payment</h2>
                 </div>
 
                 <div className="space-y-4">
                   {invoiceTotal != null && (
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-400">Total</span>
-                      <span className="text-white text-xl">R {Number(invoiceTotal).toFixed(2)}</span>
+                      <span className="text-[#6b6b6b]">Total</span>
+                      <span className="text-black text-xl font-bold">R {Number(invoiceTotal).toFixed(2)}</span>
                     </div>
                   )}
 
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-400">Status</span>
-                    <Badge
-                      variant={
-                        jobDetail.payment_status === 'paid' ? 'default' : 'secondary'
-                      }
-                    >
+                    <span className="text-[#6b6b6b]">Status</span>
+                    <Badge variant={jobDetail.payment_status === 'paid' ? 'default' : 'secondary'}>
                       {jobDetail.payment_status === 'paid' ? 'Paid' : 'Pending'}
                     </Badge>
                   </div>
 
                   {jobDetail.payment_status !== 'paid' && (
-                    <Button onClick={handlePayment} className="w-full">
-                      Pay Now
+                    <Button onClick={handlePayment} className="w-full" size="lg">
+                      Pay now
                     </Button>
                   )}
                 </div>
@@ -414,8 +407,8 @@ export function ClientDashboard() {
 
           <div className="space-y-6">
             {provider.name && (
-              <Card className="bg-gray-900 border-gray-800 p-6">
-                <h2 className="text-white text-xl mb-4">Your Technician</h2>
+              <Card className="bg-white border-black/5 ha-shadow p-6 rounded-2xl">
+                <h2 className="text-black text-xl font-bold mb-4">Your technician</h2>
 
                 <div className="flex items-center gap-4 mb-4">
                   <Avatar className="w-16 h-16">
@@ -423,12 +416,11 @@ export function ClientDashboard() {
                     <AvatarFallback>{provider.name?.[0] || 'T'}</AvatarFallback>
                   </Avatar>
                   <div>
-                    <h3 className="text-white">{provider.name}</h3>
+                    <h3 className="text-black font-semibold">{provider.name}</h3>
                     {(provider.rating != null || provider.jobs_completed != null) && (
-                      <p className="text-gray-400 text-sm">
+                      <p className="text-[#6b6b6b] text-sm">
                         {provider.rating != null && `⭐ ${provider.rating}`}
-                        {provider.jobs_completed != null &&
-                          ` • ${provider.jobs_completed} jobs`}
+                        {provider.jobs_completed != null && ` • ${provider.jobs_completed} jobs`}
                       </p>
                     )}
                   </div>
@@ -438,14 +430,14 @@ export function ClientDashboard() {
                   {provider.phone && (
                     <a
                       href={`tel:${provider.phone}`}
-                      className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors"
+                      className="flex items-center gap-3 text-[#6b6b6b] hover:text-black transition-colors"
                     >
                       <Phone className="w-4 h-4" />
                       {provider.phone}
                     </a>
                   )}
                   {provider.email && (
-                    <div className="flex items-center gap-3 text-gray-400">
+                    <div className="flex items-center gap-3 text-[#6b6b6b]">
                       <Mail className="w-4 h-4" />
                       {provider.email}
                     </div>
@@ -454,31 +446,31 @@ export function ClientDashboard() {
               </Card>
             )}
 
-            <Card className="bg-gray-900 border-gray-800 p-6">
-              <h2 className="text-white text-xl mb-4">Job Details</h2>
+            <Card className="bg-white border-black/5 ha-shadow p-6 rounded-2xl">
+              <h2 className="text-black text-xl font-bold mb-4">Job details</h2>
 
               <div className="space-y-4">
                 <div>
-                  <p className="text-gray-400 text-sm">Job ID</p>
-                  <p className="text-white">#{jobDetail.id}</p>
+                  <p className="text-[#6b6b6b] text-sm">Job ID</p>
+                  <p className="text-black font-medium">#{jobDetail.id}</p>
                 </div>
 
                 <div>
-                  <p className="text-gray-400 text-sm">Service Type</p>
-                  <p className="text-white">{jobDetail.service_type}</p>
+                  <p className="text-[#6b6b6b] text-sm">Service type</p>
+                  <p className="text-black">{jobDetail.service_type}</p>
                 </div>
 
                 <div>
-                  <p className="text-gray-400 text-sm">Description</p>
-                  <p className="text-white">{jobDetail.description || '—'}</p>
+                  <p className="text-[#6b6b6b] text-sm">Description</p>
+                  <p className="text-black">{jobDetail.description || '—'}</p>
                 </div>
 
                 {jobDetail.appointment_time && (
                   <div className="flex items-start gap-3">
-                    <Clock className="w-4 h-4 text-gray-400 mt-1" />
+                    <Clock className="w-4 h-4 text-[#6b6b6b] mt-1" />
                     <div>
-                      <p className="text-gray-400 text-sm">Appointment</p>
-                      <p className="text-white">
+                      <p className="text-[#6b6b6b] text-sm">Appointment</p>
+                      <p className="text-black">
                         {new Date(jobDetail.appointment_time).toLocaleString('en-ZA', {
                           month: 'short',
                           day: 'numeric',
@@ -491,10 +483,10 @@ export function ClientDashboard() {
                 )}
 
                 <div className="flex items-start gap-3">
-                  <MapPin className="w-4 h-4 text-gray-400 mt-1" />
+                  <MapPin className="w-4 h-4 text-[#6b6b6b] mt-1" />
                   <div>
-                    <p className="text-gray-400 text-sm">Location</p>
-                    <p className="text-white">
+                    <p className="text-[#6b6b6b] text-sm">Location</p>
+                    <p className="text-black">
                       {jobDetail.address || jobDetail.client?.address || '—'}
                     </p>
                   </div>
@@ -503,8 +495,8 @@ export function ClientDashboard() {
             </Card>
 
             {jobDetail.events && jobDetail.events.length > 0 && (
-              <Card className="bg-gray-900 border-gray-800 p-6">
-                <h2 className="text-white text-xl mb-4">Activity Timeline</h2>
+              <Card className="bg-white border-black/5 ha-shadow p-6 rounded-2xl">
+                <h2 className="text-black text-xl font-bold mb-4">Activity</h2>
                 <Timeline events={jobDetail.events as any} />
               </Card>
             )}
