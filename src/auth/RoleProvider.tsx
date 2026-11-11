@@ -35,23 +35,19 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    document.documentElement.classList.add('dark');
-    document.body.dataset.theme = role ?? 'sp';
+    document.documentElement.classList.remove('dark');
+    document.body.dataset.theme = role ?? 'light';
 
     const titles: Record<Exclude<Role, null>, string> = {
-      client: 'Home Assist — Client',
-      sp: 'Home Assist — Service Provider',
+      client: 'Home Assist',
+      sp: 'Home Assist — Provider',
       admin: 'Home Assist — Admin',
     };
-
     document.title = role ? titles[role] : 'Home Assist';
   }, [role]);
 
   const value = useMemo(() => ({ role, setRole, logout }), [role]);
-
-  return (
-    <RoleContext.Provider value={value}>{children}</RoleContext.Provider>
-  );
+  return <RoleContext.Provider value={value}>{children}</RoleContext.Provider>;
 }
 
 export function useRole() {
