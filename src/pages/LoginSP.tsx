@@ -1,15 +1,15 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import AuthCard from '../auth/AuthCard';
 import TextInput from '../auth/TextInput';
 import PasswordInput from '../auth/PasswordInput';
 import { useRole } from '@/auth/RoleProvider';
 import { API_BASE } from '@/lib/api';
+import { Button } from '@/components/ui/button';
 
 export default function LoginSP() {
   const navigate = useNavigate();
   const { setRole } = useRole();
-
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -17,14 +17,11 @@ export default function LoginSP() {
 
   const handleLogin = async () => {
     setError('');
-
     if (!email || !password) {
       setError('Please fill in all fields.');
       return;
     }
-
     setLoading(true);
-
     try {
       const res = await fetch(`${API_BASE}/api/sp/login`, {
         method: 'POST',
@@ -32,14 +29,11 @@ export default function LoginSP() {
         credentials: 'include',
         body: JSON.stringify({ email, password }),
       });
-
       const data = await res.json();
-
       if (!res.ok) {
         setError(data.error || 'Login failed.');
         return;
       }
-
       setRole('sp');
       localStorage.setItem('spId', String(data.sp_id));
       navigate('/sp', { replace: true });
@@ -51,46 +45,20 @@ export default function LoginSP() {
   };
 
   return (
-    <AuthCard
-      title="Service Provider Login"
-      subtitle="Access your Home Assist SP dashboard"
-    >
-      <TextInput
-        label="Email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-      />
-
-      <PasswordInput
-        label="Password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      />
-
-      {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
-
-      <button
-        onClick={handleLogin}
-        disabled={loading}
-        className="w-full bg-green-600 text-white py-2 rounded-lg mt-4 hover:bg-green-700 disabled:opacity-50"
-      >
-        {loading ? 'Logging in...' : 'Login'}
-      </button>
-
-      <div className="text-center mt-4 space-y-2">
-        <button
-          onClick={() => navigate('/register-sp')}
-          className="text-green-400 underline text-sm"
-        >
-          Register as a Service Provider
-        </button>
-
-        <button
-          onClick={() => alert('Password reset coming soon.')}
-          className="text-gray-500 text-xs"
-        >
-          Forgot Password?
-        </button>
+    <AuthCard title="Provider login" subtitle="Accept jobs and manage your work">
+      <TextInput label="Email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" />
+      <PasswordInput label="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
+      {error && <p className="text-[#e11900] text-sm mb-3">{error}</p>}
+      <Button onClick={handleLogin} disabled={loading} className="w-full mt-2" size="lg">
+        {loading ? 'Logging in...' : 'Continue'}
+      </Button>
+      <div className="mt-6 text-center space-y-2">
+        <p className="text-sm text-[#6b6b6b]">
+          Want to join the network?{' '}
+          <Link to="/register-sp" className="font-semibold text-black underline-offset-2 hover:underline">
+            Register as a provider
+          </Link>
+        </p>
       </div>
     </AuthCard>
   );
