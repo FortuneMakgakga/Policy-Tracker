@@ -28,177 +28,20 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = upload_folder
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
 
-db = SQLAlchemy(app)
+# ---- single SQLAlchemy instance (from models.py) ----
+import models as models_module
+db = models_module.db          # use the db defined in models.py
+db.init_app(app)               # bind it to this Flask app
+
+from api_routes import register_api_routes
+register_api_routes(app, db, models_module)
+
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-
-# ============================
-# MODELS
-# ============================
-
-class Claim(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    policy_id = db.Column(db.String(100))
-    claim_type = db.Column(db.String(50))
-    incident_date = db.Column(db.String(50))
-    incident_location = db.Column(db.String(100))
-    description = db.Column(db.Text)
-    claim_amount = db.Column(db.Float)
-    status = db.Column(db.String(50), default="Pending")
-    claimant_name = db.Column(db.String(100))
-    contact_number = db.Column(db.String(50))
-    email = db.Column(db.String(100))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-
-class Client(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(150), nullable=False)
-    email = db.Column(db.String(150), nullable=False, unique=True)
-    phone = db.Column(db.String(50))
-    address = db.Column(db.String(255))
-    password_hash = db.Column(db.String(200), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    jobs = db.relationship('JobRequest', backref='client', lazy=True, foreign_keys='JobRequest.client_id')
-
-    def set_password(self, password: str) -> None:
-        self.password_hash = generate_password_hash(password)
-
-    def check_password(self, password: str) -> bool:
-        return check_password_hash(self.password_hash, password)
-
-
-class ServiceProvider(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(150), nullable=False)
-    email = db.Column(db.String(150), nullable=False, unique=True)
-    skill = db.Column(db.String(100), nullable=False)
-    phone = db.Column(db.String(100), nullable=False)
-    province = db.Column(db.String(100), nullable=False)
-    latitude = db.Column(db.Float)
-    longitude = db.Column(db.Float)
-    is_available = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    last_assigned_at = db.Column(db.DateTime)
-    password_hash = db.Column(db.String(200), nullable=False)
-
-    jobs = db.relationship(
-        'JobRequest',
-        backref=db.backref('assigned_provider', lazy=True),
-        lazy=True,
-        foreign_keys='JobRequest.assigned_sp_id'
-    )
-    ratings = db.relationship('Rating', backref='provider', lazy=True)
-    payments = db.relationship('Payment', backref='provider', lazy=True)
-
-    def set_password(self, password: str) -> None:
-        self.password_hash = generate_password_hash(password)
-
-    def check_password(self, password: str) -> bool:
-        return check_password_hash(self.password_hash, password)
-
-
-class JobRequest(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-
-    client_id = db.Column(db.Integer, db.ForeignKey('client.id'), nullable=True)
-    client_name = db.Column(db.Text, nullable=False)
-    client_phone = db.Column(db.String(50))
-    client_address = db.Column(db.String(255))
-
-    job_description = db.Column(db.Text, nullable=False)
-    skill_required = db.Column(db.String(100), nullable=False)
-    appointment_time = db.Column(db.DateTime, nullable=False)
-    province = db.Column(db.String(100), nullable=False)
-
-    latitude = db.Column(db.Float)
-    longitude = db.Column(db.Float)
-
-    assigned_sp_id = db.Column(db.Integer, db.ForeignKey('service_provider.id'))
-
-    # High-level business status
-    status = db.Column(db.String(50), default="Open")  # Open, Assigned, Active, Cancelled, Completed
-
-    # Operational workflow stage
-    stage = db.Column(db.String(50), default="new")  # new, assigned, accepted, arrived, in_progress, paused, quoted, approved, completed, invoiced
-
-    pause_reason = db.Column(db.Text)
-    completion_notes = db.Column(db.Text)
-
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    accepted_at = db.Column(db.DateTime)
-    arrived_at = db.Column(db.DateTime)
-    started_at = db.Column(db.DateTime)
-    paused_at = db.Column(db.DateTime)
-    resumed_at = db.Column(db.DateTime)
-    completed_at = db.Column(db.DateTime)
-
-    declined_sps = db.Column(db.Text, default="")
-
-
-class JobDecline(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    job_id = db.Column(db.Integer, db.ForeignKey('job_request.id'))
-    sp_id = db.Column(db.Integer, db.ForeignKey('service_provider.id'))
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-
-
-class JobHistory(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    job_id = db.Column(db.Integer, db.ForeignKey('job_request.id'), nullable=False)
-    sp_id = db.Column(db.Integer, db.ForeignKey('service_provider.id'), nullable=True)
-    action = db.Column(db.String(50), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-
-class JobPhoto(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    job_request_id = db.Column(db.Integer, db.ForeignKey('job_request.id'), nullable=False)
-    image_url = db.Column(db.String(500), nullable=False)
-    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-
-class Rating(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    service_provider_id = db.Column(db.Integer, db.ForeignKey('service_provider.id'))
-    job_request_id = db.Column(db.Integer, db.ForeignKey('job_request.id'))
-    score = db.Column(db.Integer, nullable=False)
-    comment = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-
-class Payment(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    service_provider_id = db.Column(db.Integer, db.ForeignKey('service_provider.id'))
-    job_request_id = db.Column(db.Integer, db.ForeignKey('job_request.id'))
-    amount = db.Column(db.Float, nullable=False)
-    status = db.Column(db.String(50), default="Pending")  # Pending, Paid, Failed
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-
-class Quote(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    job_request_id = db.Column(db.Integer, db.ForeignKey('job_request.id'), nullable=False)
-    client_id = db.Column(db.Integer, db.ForeignKey('client.id'), nullable=False)
-    service_provider_id = db.Column(db.Integer, db.ForeignKey('service_provider.id'), nullable=True)
-    total_amount = db.Column(db.Float, nullable=False)
-    details = db.Column(db.Text, default="")
-    status = db.Column(db.String(50), default="Pending")
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-
-class Invoice(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    job_request_id = db.Column(db.Integer, db.ForeignKey('job_request.id'), nullable=False)
-    client_id = db.Column(db.Integer, db.ForeignKey('client.id'), nullable=False)
-    service_provider_id = db.Column(db.Integer, db.ForeignKey('service_provider.id'), nullable=True)
-    total_amount = db.Column(db.Float, nullable=False)
-    details = db.Column(db.Text, default="")
-    status = db.Column(db.String(50), default="Unpaid")
-    issued_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-
+from models import (
+    Claim, Client, ServiceProvider, JobRequest, JobHistory,
+    JobPhoto, Rating, Payment, Quote, Invoice, JobDecline,
+)
 # ============================
 # LOGIN DECORATORS
 # ============================
@@ -279,18 +122,18 @@ class ClaimAdmin(SecuredModelView):
 # ADMIN SETUP
 # ============================
 
-admin = Admin(app, name='Claims Admin', index_view=MyAdminIndexView())
-admin.add_view(ClaimAdmin(Claim, db.session))
-admin.add_view(SecuredModelView(JobRequest, db.session))
-admin.add_view(SecuredModelView(JobHistory, db.session))
-admin.add_view(SecuredModelView(ServiceProvider, db.session))
-admin.add_view(SecuredModelView(Client, db.session))
-admin.add_view(SecuredModelView(Rating, db.session))
-admin.add_view(SecuredModelView(Payment, db.session))
-admin.add_view(SecuredModelView(Quote, db.session))
-admin.add_view(SecuredModelView(Invoice, db.session))
-admin.add_view(SecuredModelView(JobDecline, db.session))
-admin.add_view(SecuredModelView(JobPhoto, db.session))
+admin = Admin(app, name='Claims AdminUser', index_view=MyAdminIndexView())
+admin.add_view(ClaimAdmin(Claim, db))
+admin.add_view(SecuredModelView(JobRequest, db))
+admin.add_view(SecuredModelView(JobHistory, db))
+admin.add_view(SecuredModelView(ServiceProvider, db))
+admin.add_view(SecuredModelView(Client, db))
+admin.add_view(SecuredModelView(Rating, db))
+admin.add_view(SecuredModelView(Payment, db))
+admin.add_view(SecuredModelView(Quote, db))
+admin.add_view(SecuredModelView(Invoice, db))
+admin.add_view(SecuredModelView(JobDecline, db))
+admin.add_view(SecuredModelView(JobPhoto, db))
 
 
 # ============================
@@ -548,93 +391,93 @@ def submit_claim():
 # CLIENT API AUTH + PROFILE
 # ============================
 
-@app.route('/api/client/register', methods=['POST'])
-def client_register():
-    data = request.get_json() or {}
-
-    email = data.get('email')
-    password = data.get('password')
-    name = data.get('name')
-
-    if not email or not password or not name:
-        return jsonify({'error': 'name, email, and password are required'}), 400
-
-    existing = Client.query.filter_by(email=email).first()
-    if existing:
-        return jsonify({'error': 'Email already registered'}), 400
-
-    client_obj = Client(
-        name=name,
-        email=email,
-        phone=data.get('phone'),
-        address=data.get('address')
-    )
-    client_obj.set_password(password)
-
-    db.session.add(client_obj)
-    db.session.commit()
-
-    return jsonify({'message': 'Client registered successfully', 'client_id': client_obj.id}), 201
-
-
-@app.route('/api/client/login', methods=['POST'])
-def client_login():
-    data = request.get_json() or {}
-
-    email = data.get('email')
-    password = data.get('password')
-
-    client_obj = Client.query.filter_by(email=email).first()
-    if not client_obj or not client_obj.check_password(password):
-        return jsonify({'error': 'Invalid credentials'}), 401
-
-    session.clear()
-    session['client_id'] = client_obj.id
-    session.permanent = True
-
-    return jsonify({
-        'message': 'Client logged in successfully',
-        'client_id': client_obj.id,
-        'name': client_obj.name,
-        'email': client_obj.email
-    }), 200
-
-
-@app.route('/api/client/logout', methods=['POST'])
-def client_logout():
-    session.pop('client_id', None)
-    return jsonify({'message': 'Client logged out successfully'}), 200
-
-
-@app.route('/api/client/profile', methods=['GET'])
-def client_profile():
-    client_id = session.get('client_id') or request.args.get('client_id')
-    if not client_id:
-        return jsonify({'error': 'client_id required'}), 400
-
-    client_obj = db.session.get(Client, int(client_id))
-    if not client_obj:
-        return jsonify({'error': 'Client not found'}), 404
-
-    return jsonify({
-        'id': client_obj.id,
-        'name': client_obj.name,
-        'email': client_obj.email,
-        'phone': client_obj.phone,
-        'address': client_obj.address
-    }), 200
-
-
-@app.route('/api/client/jobs', methods=['GET'])
-def client_jobs():
-    client_id = session.get('client_id') or request.args.get('client_id')
-    if not client_id:
-        return jsonify({'error': 'client_id required'}), 400
-
-    jobs = JobRequest.query.filter_by(client_id=int(client_id)).order_by(JobRequest.created_at.desc()).all()
-    return jsonify([serialize_job(j) for j in jobs]), 200
-
-
+# OLD (moved to api_routes) @app.route('/api/client/register', methods=['POST'])
+# OLD (moved to api_routes) def client_register():
+#     data = request.get_json() or {}
+# 
+#     email = data.get('email')
+#     password = data.get('password')
+#     name = data.get('name')
+# 
+#     if not email or not password or not name:
+#         return jsonify({'error': 'name, email, and password are required'}), 400
+# 
+#     existing = Client.query.filter_by(email=email).first()
+#     if existing:
+#         return jsonify({'error': 'Email already registered'}), 400
+# 
+#     client_obj = Client(
+#         name=name,
+#         email=email,
+#         phone=data.get('phone'),
+#         address=data.get('address')
+#     )
+#     client_obj.set_password(password)
+# 
+#     db.session.add(client_obj)
+#     db.session.commit()
+# 
+#     return jsonify({'message': 'Client registered successfully', 'client_id': client_obj.id}), 201
+# 
+# 
+# OLD (moved to api_routes) @app.route('/api/client/login', methods=['POST'])
+# OLD (moved to api_routes) def client_login():
+#     data = request.get_json() or {}
+# 
+#     email = data.get('email')
+#     password = data.get('password')
+# 
+#     client_obj = Client.query.filter_by(email=email).first()
+#     if not client_obj or not client_obj.check_password(password):
+#         return jsonify({'error': 'Invalid credentials'}), 401
+# 
+#     session.clear()
+#     session['client_id'] = client_obj.id
+#     session.permanent = True
+# 
+#     return jsonify({
+#         'message': 'Client logged in successfully',
+#         'client_id': client_obj.id,
+#         'name': client_obj.name,
+#         'email': client_obj.email
+#     }), 200
+# 
+# 
+# OLD (moved to api_routes) @app.route('/api/client/logout', methods=['POST'])
+# OLD (moved to api_routes) def client_logout():
+#     session.pop('client_id', None)
+#     return jsonify({'message': 'Client logged out successfully'}), 200
+# 
+# 
+# OLD (api_routes) @app.route('/api/client/profile', methods=['GET'])
+# OLD (api_routes) def client_profile():
+#     client_id = session.get('client_id') or request.args.get('client_id')
+#     if not client_id:
+#         return jsonify({'error': 'client_id required'}), 400
+# 
+#     client_obj = db.session.get(Client, int(client_id))
+#     if not client_obj:
+#         return jsonify({'error': 'Client not found'}), 404
+# 
+#     return jsonify({
+#         'id': client_obj.id,
+#         'name': client_obj.name,
+#         'email': client_obj.email,
+#         'phone': client_obj.phone,
+#         'address': client_obj.address
+#     }), 200
+# 
+# 
+# OLD (api_routes) @app.route('/api/client/jobs', methods=['GET'])
+# OLD (api_routes) def client_jobs():
+#     client_id = session.get('client_id') or request.args.get('client_id')
+#     if not client_id:
+#         return jsonify({'error': 'client_id required'}), 400
+# 
+#     jobs = JobRequest.query.filter_by(client_id=int(client_id)).order_by(JobRequest.created_at.desc()).all()
+#     return jsonify([serialize_job(j) for j in jobs]), 200
+# 
+# 
 @app.route('/api/client/job/<int:job_id>/cancel', methods=['POST'])
 def client_cancel_job(job_id):
     client_id = session.get('client_id') or (request.get_json() or {}).get('client_id')
@@ -663,75 +506,75 @@ def client_cancel_job(job_id):
 # SERVICE PROVIDER AUTH
 # ============================
 
-@app.route('/api/sp/register', methods=['POST'])
-def api_sp_register():
-    data = request.get_json() or {}
-
-    name = data.get('name')
-    email = data.get('email')
-    phone = data.get('phone')
-    province = data.get('province')
-    skill = data.get('skill')
-    latitude = data.get('latitude')
-    longitude = data.get('longitude')
-    password = data.get('password')
-
-    if not name or not email or not phone or not province or not skill or not password:
-        return jsonify({'error': 'Missing required fields'}), 400
-
-    existing = ServiceProvider.query.filter_by(email=email).first()
-    if existing:
-        return jsonify({'error': 'Email already registered'}), 400
-
-    sp = ServiceProvider(
-        name=name,
-        email=email,
-        phone=phone,
-        province=province,
-        skill=skill,
-        latitude=float(latitude) if latitude is not None else None,
-        longitude=float(longitude) if longitude is not None else None,
-        password_hash=generate_password_hash(password)
-    )
-
-    db.session.add(sp)
-    db.session.commit()
-
-    return jsonify({
-        'message': 'Service provider registered successfully',
-        'sp_id': sp.id
-    }), 201
-
-
-@app.route('/api/sp/login', methods=['POST'])
-def api_sp_login():
-    data = request.get_json() or {}
-
-    email = data.get('email')
-    password = data.get('password')
-
-    sp = ServiceProvider.query.filter_by(email=email).first()
-    if not sp or not sp.check_password(password):
-        return jsonify({'error': 'Invalid credentials'}), 401
-
-    session.clear()
-    session['sp_id'] = sp.id
-    session.permanent = True
-
-    return jsonify({
-        'message': 'Service provider logged in successfully',
-        'sp_id': sp.id,
-        'name': sp.name,
-        'email': sp.email
-    }), 200
-
-
-@app.route('/api/sp/logout', methods=['POST'])
-def api_sp_logout():
-    session.pop('sp_id', None)
-    return jsonify({'message': 'Service provider logged out successfully'}), 200
-
-
+# OLD (api_routes) @app.route('/api/sp/register', methods=['POST'])
+# OLD (api_routes) def api_sp_register():
+#     data = request.get_json() or {}
+# 
+#     name = data.get('name')
+#     email = data.get('email')
+#     phone = data.get('phone')
+#     province = data.get('province')
+#     skill = data.get('skill')
+#     latitude = data.get('latitude')
+#     longitude = data.get('longitude')
+#     password = data.get('password')
+# 
+#     if not name or not email or not phone or not province or not skill or not password:
+#         return jsonify({'error': 'Missing required fields'}), 400
+# 
+#     existing = ServiceProvider.query.filter_by(email=email).first()
+#     if existing:
+#         return jsonify({'error': 'Email already registered'}), 400
+# 
+#     sp = ServiceProvider(
+#         name=name,
+#         email=email,
+#         phone=phone,
+#         province=province,
+#         skill=skill,
+#         latitude=float(latitude) if latitude is not None else None,
+#         longitude=float(longitude) if longitude is not None else None,
+#         password_hash=generate_password_hash(password)
+#     )
+# 
+#     db.session.add(sp)
+#     db.session.commit()
+# 
+#     return jsonify({
+#         'message': 'Service provider registered successfully',
+#         'sp_id': sp.id
+#     }), 201
+# 
+# 
+# OLD (moved to api_routes) @app.route('/api/sp/login', methods=['POST'])
+# OLD (moved to api_routes) def api_sp_login():
+#     data = request.get_json() or {}
+# 
+#     email = data.get('email')
+#     password = data.get('password')
+# 
+#     sp = ServiceProvider.query.filter_by(email=email).first()
+#     if not sp or not sp.check_password(password):
+#         return jsonify({'error': 'Invalid credentials'}), 401
+# 
+#     session.clear()
+#     session['sp_id'] = sp.id
+#     session.permanent = True
+# 
+#     return jsonify({
+#         'message': 'Service provider logged in successfully',
+#         'sp_id': sp.id,
+#         'name': sp.name,
+#         'email': sp.email
+#     }), 200
+# 
+# 
+# OLD (moved to api_routes) @app.route('/api/sp/logout', methods=['POST'])
+# OLD (moved to api_routes) def api_sp_logout():
+#     session.pop('sp_id', None)
+#     return jsonify({'message': 'Service provider logged out successfully'}), 200
+# 
+# 
 @app.route('/sp_login', methods=['GET', 'POST'])
 def sp_login():
     error = None
@@ -1634,8 +1477,8 @@ class ClaimAdmin(ModelView):
 # --------------------------- ADMIN SETUP -------------------------- #
 
 admin = Admin(app, name='Claims Admin', template_mode='bootstrap4', base_template='admin/base.html')
-admin.add_view(ClaimAdmin(Claim, db.session))
-admin.add_view(ModelView(JobRequest, db.session))  # New admin panel for client jobs
+admin.add_view(ClaimAdmin(Claim, db))
+admin.add_view(ModelView(JobRequest, db))  # New admin panel for client jobs
 
 
 # --------------------------- ROUTES -------------------------- #
