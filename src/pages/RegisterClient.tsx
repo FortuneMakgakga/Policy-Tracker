@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Loader2, MapPin } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import AuthCard from '@/auth/AuthCard';
 import { Button } from '@/components/ui/button';
-import { API_BASE } from '@/lib/api';
+import { clientApi } from '@/lib/api';
 
 const fieldClass =
   'w-full rounded-xl border border-black/10 bg-[#f6f6f6] px-4 py-3 text-black placeholder:text-[#9a9a9a] focus:outline-none focus:ring-2 focus:ring-black/20 focus:border-black/20 focus:bg-white transition-colors';
@@ -55,27 +55,15 @@ export default function RegisterClient() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE}/api/client/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          name: form.name,
-          client_name: form.name,
-          email: form.email,
-          phone: form.phone,
-          password: form.password,
-          address: form.address,
-          province: form.province,
-        }),
+      const data = await clientApi.registerLegacy({
+        name: form.name,
+        client_name: form.name,
+        email: form.email,
+        phone: form.phone,
+        password: form.password,
+        address: form.address,
+        province: form.province,
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || 'Registration failed.');
-        return;
-      }
 
       if (data.client_id) {
         localStorage.setItem('clientId', data.client_id.toString());
@@ -85,8 +73,8 @@ export default function RegisterClient() {
 
       setSuccess('Account created. Redirecting to login...');
       setTimeout(() => navigate('/login-client'), 900);
-    } catch {
-      setError('Could not connect to server.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not connect to server.');
     } finally {
       setLoading(false);
     }

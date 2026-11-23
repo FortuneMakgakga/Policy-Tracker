@@ -4,7 +4,7 @@ import AuthCard from '../auth/AuthCard';
 import TextInput from '../auth/TextInput';
 import PasswordInput from '../auth/PasswordInput';
 import { useRole } from '@/auth/RoleProvider';
-import { API_BASE } from '@/lib/api';
+import { clientApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 
 export default function LoginClient() {
@@ -23,22 +23,13 @@ export default function LoginClient() {
     }
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/client/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || 'Login failed.');
-        return;
-      }
+      const data = await clientApi.login({ email, password });
       setRole('client');
       localStorage.setItem('clientId', String(data.client_id));
+      if (data.name) localStorage.setItem('clientName', data.name);
       navigate('/client');
-    } catch {
-      setError('Could not connect to server.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not connect to server.');
     } finally {
       setLoading(false);
     }

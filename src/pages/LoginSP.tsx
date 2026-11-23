@@ -4,7 +4,7 @@ import AuthCard from '../auth/AuthCard';
 import TextInput from '../auth/TextInput';
 import PasswordInput from '../auth/PasswordInput';
 import { useRole } from '@/auth/RoleProvider';
-import { API_BASE } from '@/lib/api';
+import { spApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 
 export default function LoginSP() {
@@ -23,22 +23,12 @@ export default function LoginSP() {
     }
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/sp/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || 'Login failed.');
-        return;
-      }
+      const data = await spApi.login({ email, password });
       setRole('sp');
       localStorage.setItem('spId', String(data.sp_id));
       navigate('/sp', { replace: true });
-    } catch {
-      setError('Could not connect to server.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not connect to server.');
     } finally {
       setLoading(false);
     }

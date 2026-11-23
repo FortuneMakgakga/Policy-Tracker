@@ -4,7 +4,7 @@ import TextInput from '../auth/TextInput';
 import PasswordInput from '../auth/PasswordInput';
 import { toast } from 'sonner';
 import { useRole } from '@/auth/RoleProvider';
-import { API_BASE } from '@/lib/api';
+import { adminApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Home, ShieldCheck } from 'lucide-react';
 
@@ -18,14 +18,7 @@ export default function LoginAdmin() {
   const handleLogin = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE}/api/admin/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ username, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Login failed');
+      await adminApi.login({ username, email: username, password });
       setRole('admin');
       toast.success('Welcome back');
       navigate('/admin');

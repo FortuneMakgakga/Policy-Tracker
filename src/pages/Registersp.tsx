@@ -4,7 +4,7 @@ import { Loader2, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import AuthCard from '@/auth/AuthCard';
 import { Button } from '@/components/ui/button';
-import { API_BASE } from '@/lib/api';
+import { spApi } from '@/lib/api';
 
 const fieldClass =
   'w-full rounded-xl border border-black/10 bg-[#f6f6f6] px-4 py-3 text-black placeholder:text-[#9a9a9a] focus:outline-none focus:ring-2 focus:ring-black/20 focus:border-black/20 focus:bg-white transition-colors';
@@ -76,33 +76,21 @@ export default function SPRegisterPage() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE}/api/sp/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          name: form.name,
-          email: form.email,
-          phone: form.phone,
-          province: form.province,
-          skill: form.skill,
-          latitude: form.latitude ? parseFloat(form.latitude) : null,
-          longitude: form.longitude ? parseFloat(form.longitude) : null,
-          password: form.password,
-        }),
+      await spApi.registerLegacy({
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        province: form.province,
+        skill: form.skill,
+        latitude: form.latitude ? parseFloat(form.latitude) : null,
+        longitude: form.longitude ? parseFloat(form.longitude) : null,
+        password: form.password,
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || 'Registration failed.');
-        return;
-      }
 
       setSuccess('Provider account created. Redirecting to login...');
       setTimeout(() => navigate('/login-sp'), 900);
-    } catch {
-      setError('Could not connect to server.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not connect to server.');
     } finally {
       setLoading(false);
     }
