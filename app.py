@@ -13,28 +13,46 @@ import pandas as pd
 import os
 import math
 import uuid
+import re
 
 app = Flask(__name__)
 
-
-def _cors_origin(origin):
-    """Allow Codespace frontends and local Vite (required when credentials=True)."""
-    if not origin:
-        return False
-    if origin.startswith("https://") and origin.endswith(".app.github.dev"):
-        return origin
-    if origin.startswith("http://localhost") or origin.startswith("http://127.0.0.1"):
-        return origin
-    return False
-
+# Codespace + local Vite origins (credentials require explicit origin, not *)
+_CORS_ORIGIN_RE = re.compile(
+    r"^https://[a-z0-9-]+\.app\.github\.dev$|^http://(localhost|127\.0\.0\.1)(:\d+)?$"
+)
 
 CORS(
     app,
-    origins=_cors_origin,
+    origins=_CORS_ORIGIN_RE,
     supports_credentials=True,
     allow_headers=["Content-Type", "Authorization", "X-Client-Id", "X-SP-Id"],
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    expose_headers=["Content-Type"],
+    max_age=86400,
 )
+
+
+@app.after_request
+def _ensure_cors(resp):
+    """Belt-and-suspenders: always reflect allowed Origin on API responses."""
+    origin = request.headers.get("Origin")
+    if origin and _CORS_ORIGIN_RE.match(origin):
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        resp.headers["Vary"] = "Origin"
+        if request.method == "OPTIONS":
+            resp.headers.setdefault(
+                "Access-Control-Allow-Methods",
+                "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            )
+            resp.headers.setdefault(
+                "Access-Control-Allow-Headers",
+                "Content-Type, Authorization, X-Client-Id, X-SP-Id",
+            )
+            resp.headers.setdefault("Access-Control-Max-Age", "86400")
+    return resp
+
 
 app.secret_key = os.environ.get("SECRET_KEY", "supersecretkey")
 app.permanent_session_lifetime = timedelta(days=7)
@@ -95,5 +113,4 @@ def health():
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-    # host 0.0.0.0 so Codespaces port forwarding works
     socketio.run(app, host="0.0.0.0", port=5000, debug=True, use_reloader=False)
